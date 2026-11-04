@@ -7,8 +7,21 @@
 
 date_default_timezone_set('Asia/Manila');
 
-// The folder name inside htdocs. All links in the system are built from this.
-define('BASE_URL', '/bus-ticketing-system');
+// Derive the app URL prefix from the web server's document root so the app
+// works both from XAMPP's htdocs folder and when served directly from its root.
+$appRoot = realpath(dirname(__DIR__));
+$documentRoot = realpath($_SERVER['DOCUMENT_ROOT'] ?? '');
+$baseUrl = '/bus-ticketing-system';
+if ($appRoot !== false && $documentRoot !== false) {
+    $appPath = str_replace('\\', '/', $appRoot);
+    $documentPath = rtrim(str_replace('\\', '/', $documentRoot), '/');
+    if (strcasecmp($appPath, $documentPath) === 0) {
+        $baseUrl = '';
+    } elseif (strncasecmp($appPath, $documentPath . '/', strlen($documentPath) + 1) === 0) {
+        $baseUrl = substr($appPath, strlen($documentPath));
+    }
+}
+define('BASE_URL', $baseUrl);
 define('APP_NAME', 'BusTicket');
 
 $dbHost = 'localhost';
