@@ -17,7 +17,7 @@ $user = current_user();
                     <li class="nav-item"><a class="nav-link" href="<?= url('passenger/dashboard.php') ?>">Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link" href="<?= url('passenger/my_bookings.php') ?>">My bookings</a></li>
                     <li class="nav-item"><a class="nav-link" href="<?= url('passenger/profile.php') ?>">Profile</a></li>
-                <?php elseif ($user && $user['role'] === 'ADMIN'): ?>
+                <?php elseif ($user && in_array($user['role'], ['ADMIN', 'SUPER_ADMIN'], true)): ?>
                     <li class="nav-item"><a class="nav-link" href="<?= url('admin/dashboard.php') ?>">Admin dashboard</a></li>
                 <?php endif; ?>
             </ul>

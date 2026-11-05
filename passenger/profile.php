@@ -108,15 +108,24 @@ require __DIR__ . '/../includes/header.php';
                 <h2 class="h5 mb-3">Change password</h2>
                 <div class="mb-3">
                     <label for="current_password" class="form-label">Current password</label>
-                    <input type="password" class="form-control" id="current_password" name="current_password" autocomplete="current-password" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="current_password" name="current_password" autocomplete="current-password" required>
+                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="current_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label for="new_password" class="form-label">New password</label>
-                    <input type="password" class="form-control" id="new_password" name="new_password" autocomplete="new-password" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="new_password" name="new_password" autocomplete="new-password" required>
+                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="new_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label for="confirm_password" class="form-label">Confirm new password</label>
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="confirm_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-outline-dark">Change password</button>
             </form>

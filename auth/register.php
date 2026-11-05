@@ -111,12 +111,18 @@ require __DIR__ . '/../includes/header.php';
                 </div>
                 <div class="col-sm-6">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" aria-describedby="pwHelp" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" aria-describedby="pwHelp" required>
+                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                    </div>
                     <div id="pwHelp" class="form-text">At least 8 characters, with a letter and a number.</div>
                 </div>
                 <div class="col-sm-6">
                     <label for="confirm_password" class="form-label">Confirm password</label>
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="confirm_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                    </div>
                 </div>
             </div>
             <button type="submit" class="btn btn-primary w-100 mt-4">Create account</button>

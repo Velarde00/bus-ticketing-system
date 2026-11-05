@@ -1,10 +1,8 @@
 -- =====================================================================
 -- BusTicket: Bus Ticketing and Reservation System
--- Phase 1: Database Schema + Sample Data
+-- Database schema and initial administrator account
 -- Database : bus_ticketing_db      Engine: MySQL 8.0+ (InnoDB)
--- Sample logins:
---   Admin     : admin@busticket.ph        / Admin@123
---   Passengers: (any passenger email)     / Password123
+-- Initial administrator: admin@busticket.ph / Admin@123
 -- =====================================================================
 
 DROP DATABASE IF EXISTS bus_ticketing_db;
@@ -23,7 +21,7 @@ CREATE TABLE users (
     email          VARCHAR(100) NOT NULL,
     phone_number   VARCHAR(20)  NOT NULL,
     password_hash  VARCHAR(255) NOT NULL,
-    role           ENUM('PASSENGER','ADMIN')  NOT NULL DEFAULT 'PASSENGER',
+    role           ENUM('PASSENGER','ADMIN','SUPER_ADMIN') NOT NULL DEFAULT 'PASSENGER',
     account_status ENUM('ACTIVE','INACTIVE')  NOT NULL DEFAULT 'ACTIVE',
     created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
@@ -36,7 +34,7 @@ CREATE TABLE users (
 CREATE TABLE buses (
     bus_id      INT UNSIGNED NOT NULL AUTO_INCREMENT,
     bus_number  VARCHAR(20)  NOT NULL,
-    bus_type    VARCHAR(30)  NOT NULL,
+    bus_type    VARCHAR(80)  NOT NULL,
     total_seats SMALLINT UNSIGNED NOT NULL,
     status      ENUM('ACTIVE','MAINTENANCE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
     PRIMARY KEY (bus_id),
@@ -269,92 +267,7 @@ END$$
 DELIMITER ;
 
 -- =====================================================================
--- SAMPLE DATA
--- =====================================================================
 
--- users: 1 admin (Admin@123) + 5 passengers (Password123)
+-- INITIAL ADMINISTRATOR
 INSERT INTO users (user_id, first_name, last_name, email, phone_number, password_hash, role, account_status) VALUES
-(1, 'System',  'Administrator', 'admin@busticket.ph',    '09170000001', '$2y$10$1.vCs.yuqWNRrcSQ.KwP6ektzjVUvhbBqR2g4p4dEcBmiKcpalYCS', 'ADMIN',     'ACTIVE'),
-(2, 'Juan',    'Dela Cruz',     'juan.delacruz@email.com',  '09171234501', '$2y$10$lJ5ziHGuqRSw0i8aAyZBq.v3AVlxB/T95tFndcpePfRP40VUk.uAK', 'PASSENGER', 'ACTIVE'),
-(3, 'Maria',   'Santos',        'maria.santos@email.com',   '09171234502', '$2y$10$lJ5ziHGuqRSw0i8aAyZBq.v3AVlxB/T95tFndcpePfRP40VUk.uAK', 'PASSENGER', 'ACTIVE'),
-(4, 'Jose',    'Reyes',         'jose.reyes@email.com',     '09171234503', '$2y$10$lJ5ziHGuqRSw0i8aAyZBq.v3AVlxB/T95tFndcpePfRP40VUk.uAK', 'PASSENGER', 'ACTIVE'),
-(5, 'Ana',     'Garcia',        'ana.garcia@email.com',     '09171234504', '$2y$10$lJ5ziHGuqRSw0i8aAyZBq.v3AVlxB/T95tFndcpePfRP40VUk.uAK', 'PASSENGER', 'ACTIVE'),
-(6, 'Mark',    'Villanueva',    'mark.villanueva@email.com','09171234505', '$2y$10$lJ5ziHGuqRSw0i8aAyZBq.v3AVlxB/T95tFndcpePfRP40VUk.uAK', 'PASSENGER', 'ACTIVE');
-
--- buses
-INSERT INTO buses (bus_id, bus_number, bus_type, total_seats, status) VALUES
-(1, 'ZBL-1001', 'Deluxe',        40, 'ACTIVE'),
-(2, 'ZBL-1002', 'Airconditioned',45, 'ACTIVE'),
-(3, 'DVO-2001', 'Deluxe',        40, 'ACTIVE'),
-(4, 'DVO-2002', 'Ordinary',      50, 'ACTIVE'),
-(5, 'MNL-3001', 'Premium Deluxe',36, 'ACTIVE');
-
--- drivers (driver 4's license expires soon -> good for the expiry check)
-INSERT INTO drivers (driver_id, first_name, last_name, license_number, phone_number, license_expiry, status) VALUES
-(1, 'Ramon',    'Aquino',    'N02-12-345678', '09181111001', '2028-05-20', 'ACTIVE'),
-(2, 'Eduardo',  'Mendoza',   'N03-14-456789', '09181111002', '2027-09-15', 'ACTIVE'),
-(3, 'Roberto',  'Castillo',  'N04-15-567890', '09181111003', '2029-01-10', 'ACTIVE'),
-(4, 'Antonio',  'Bautista',  'N05-16-678901', '09181111004', '2026-12-15', 'ACTIVE'),
-(5, 'Fernando', 'Ramirez',   'N06-17-789012', '09181111005', '2030-03-30', 'ACTIVE');
-
--- routes
-INSERT INTO routes (route_id, origin, destination, distance_km, status) VALUES
-(1, 'Zamboanga City', 'Pagadian City',          190.00, 'ACTIVE'),
-(2, 'Zamboanga City', 'Dipolog City',           280.00, 'ACTIVE'),
-(3, 'Davao City',     'Cagayan de Oro City',    270.00, 'ACTIVE'),
-(4, 'Davao City',     'General Santos City',    150.00, 'ACTIVE'),
-(5, 'Manila',         'Baguio City',            250.00, 'ACTIVE');
-
--- trips (10, no bus/driver overlaps)
-INSERT INTO trips (trip_id, bus_id, driver_id, route_id, departure_time, arrival_time, fare, status) VALUES
-(1,  1, 1, 1, '2026-11-02 06:00:00', '2026-11-02 11:00:00', 450.00, 'SCHEDULED'),
-(2,  2, 2, 2, '2026-11-02 07:00:00', '2026-11-02 14:00:00', 650.00, 'SCHEDULED'),
-(3,  3, 3, 3, '2026-11-03 06:00:00', '2026-11-03 13:00:00', 700.00, 'SCHEDULED'),
-(4,  4, 4, 4, '2026-11-03 08:00:00', '2026-11-03 11:30:00', 320.00, 'SCHEDULED'),
-(5,  5, 5, 5, '2026-11-03 22:00:00', '2026-11-04 04:00:00', 800.00, 'SCHEDULED'),
-(6,  1, 1, 1, '2026-11-04 06:00:00', '2026-11-04 11:00:00', 450.00, 'SCHEDULED'),
-(7,  2, 2, 2, '2026-11-05 07:00:00', '2026-11-05 14:00:00', 650.00, 'SCHEDULED'),
-(8,  3, 3, 3, '2026-11-05 06:00:00', '2026-11-05 13:00:00', 700.00, 'SCHEDULED'),
-(9,  4, 4, 4, '2026-11-06 08:00:00', '2026-11-06 11:30:00', 320.00, 'SCHEDULED'),
-(10, 5, 5, 5, '2026-11-06 22:00:00', '2026-11-07 04:00:00', 800.00, 'SCHEDULED');
-
--- bookings
-INSERT INTO bookings (booking_id, user_id, trip_id, booking_reference, booking_date, status) VALUES
-(1, 2, 1, 'BT-2026-000001', '2026-10-25 09:15:00', 'CONFIRMED'),
-(2, 3, 1, 'BT-2026-000002', '2026-10-26 10:30:00', 'PENDING'),
-(3, 4, 3, 'BT-2026-000003', '2026-10-26 14:05:00', 'CONFIRMED'),
-(4, 5, 4, 'BT-2026-000004', '2026-10-27 08:45:00', 'CANCELLED'),
-(5, 6, 5, 'BT-2026-000005', '2026-10-27 16:20:00', 'CONFIRMED'),
-(6, 2, 2, 'BT-2026-000006', '2026-10-28 11:00:00', 'PENDING'),
-(7, 2, 4, 'BT-2026-000007', '2026-10-28 13:40:00', 'CONFIRMED');
-
--- booking_seats (seat 12 on trip 4 was cancelled, then re-booked by booking 7)
-INSERT INTO booking_seats (booking_seat_id, booking_id, trip_id, seat_number, price, seat_status) VALUES
-(1,  1, 1,  5, 450.00, 'BOOKED'),
-(2,  1, 1,  6, 450.00, 'BOOKED'),
-(3,  2, 1, 10, 450.00, 'BOOKED'),
-(4,  3, 3,  1, 700.00, 'BOOKED'),
-(5,  4, 4, 12, 320.00, 'CANCELLED'),
-(6,  5, 5,  3, 800.00, 'BOOKED'),
-(7,  5, 5,  4, 800.00, 'BOOKED'),
-(8,  6, 2, 20, 650.00, 'BOOKED'),
-(9,  7, 4, 12, 320.00, 'BOOKED');
-
--- payments
-INSERT INTO payments (payment_id, booking_id, amount, payment_method, payment_status, payment_date) VALUES
-(1, 1,  900.00, 'CASH',     'PAID',     '2026-10-25 09:30:00'),
-(2, 2,  450.00, 'E_WALLET', 'PENDING',  '2026-10-26 10:35:00'),
-(3, 3,  700.00, 'CARD',     'PAID',     '2026-10-26 14:10:00'),
-(4, 4,  320.00, 'E_WALLET', 'REFUNDED', '2026-10-27 09:30:00'),
-(5, 5, 1600.00, 'E_WALLET', 'PAID',     '2026-10-27 16:30:00'),
-(6, 6,  650.00, 'CASH',     'PENDING',  '2026-10-28 11:05:00'),
-(7, 7,  320.00, 'CASH',     'PAID',     '2026-10-28 13:50:00');
-
--- tickets (only for confirmed bookings)
-INSERT INTO tickets (ticket_id, booking_seat_id, ticket_number, issued_at) VALUES
-(1, 1, 'TKT-2026-000001', '2026-10-25 09:35:00'),
-(2, 2, 'TKT-2026-000002', '2026-10-25 09:35:00'),
-(3, 4, 'TKT-2026-000003', '2026-10-26 14:15:00'),
-(4, 6, 'TKT-2026-000004', '2026-10-27 16:35:00'),
-(5, 7, 'TKT-2026-000005', '2026-10-27 16:35:00'),
-(6, 9, 'TKT-2026-000006', '2026-10-28 13:55:00');
+(1, 'System', 'Administrator', 'admin@busticket.ph', '09170000001', '$2y$10$UeFd4fQXrHvcI/6tuETWKeUdmJ.NvSQVWwNBgEqVYwHuExb4Mze4m', 'SUPER_ADMIN', 'ACTIVE');

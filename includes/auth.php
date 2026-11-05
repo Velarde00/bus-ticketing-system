@@ -49,12 +49,14 @@ function require_login(): void
     $_SESSION['role'] = $user['role'];
 }
 
-/** Allow only one role ('ADMIN' or 'PASSENGER') to open a page. */
+/** Allow a role to open a page. Super admins inherit regular admin access. */
 function require_role(string $role): void
 {
     require_login();
-    if ($_SESSION['role'] !== $role) {
+    $currentRole = $_SESSION['role'];
+    $allowed = $currentRole === $role || ($role === 'ADMIN' && $currentRole === 'SUPER_ADMIN');
+    if (!$allowed) {
         set_flash('danger', 'You do not have permission to open that page.');
-        redirect($_SESSION['role'] === 'ADMIN' ? 'admin/dashboard.php' : 'passenger/dashboard.php');
+        redirect(in_array($currentRole, ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php');
     }
 }

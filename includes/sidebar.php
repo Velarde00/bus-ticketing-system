@@ -10,7 +10,11 @@ $items = [
     ['reservations', 'Manage Reservations', 'admin/reservations/index.php', 'bi-ticket-perforated'],
     ['payments',     'Manage Payments',     'admin/payments/index.php',     'bi-cash-coin'],
     ['reports',      'Reports',             'admin/reports/sales.php',      'bi-graph-up'],
+    ['settings',     'Account settings',    'admin/settings.php',           'bi-gear'],
 ];
+if (($_SESSION['role'] ?? '') === 'SUPER_ADMIN') {
+    $items[] = ['administrators', 'Manage Administrators', 'admin/administrators.php', 'bi-shield-lock'];
+}
 ?>
 <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-label="Admin menu">
     <div class="offcanvas-header d-lg-none">
