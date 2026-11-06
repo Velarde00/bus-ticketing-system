@@ -6,7 +6,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 
 if (is_logged_in()) {
-    redirect($_SESSION['role'] === 'ADMIN' ? 'admin/dashboard.php' : 'passenger/dashboard.php');
+    redirect(in_array($_SESSION['role'], ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php');
 }
 
 $errors = [];
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id']   = (int)$user['user_id'];
                 $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
                 $_SESSION['role']      = $user['role'];
-                redirect($user['role'] === 'ADMIN' ? 'admin/dashboard.php' : 'passenger/dashboard.php');
+                redirect(in_array($user['role'], ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php');
             }
         }
     }
@@ -65,7 +65,10 @@ require __DIR__ . '/../includes/header.php';
             </div>
             <div class="mb-4">
                 <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+                <div class="input-group">
+                    <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
+                    <button class="btn btn-outline-secondary" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary w-100">Log in</button>
         </form>

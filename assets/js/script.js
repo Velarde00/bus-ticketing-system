@@ -28,4 +28,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var input = document.getElementById(button.getAttribute('data-password-toggle'));
+            if (!input) {
+                return;
+            }
+
+            var showPassword = input.type === 'password';
+            input.type = showPassword ? 'text' : 'password';
+            button.setAttribute('aria-label', showPassword ? 'Hide password' : 'Show password');
+            button.setAttribute('aria-pressed', showPassword ? 'true' : 'false');
+            button.querySelector('i').className = showPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+    });
 });
