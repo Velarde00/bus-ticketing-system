@@ -2,7 +2,7 @@
 /**
  * actions/cancel_booking.php
  * Cancels the logged-in passenger's own booking and frees its seats.
- * Rule: a booking can be cancelled until 2 hours before departure.
+ * Rule: a booking can be cancelled at least 2 days before departure.
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_role('PASSENGER');
@@ -26,8 +26,12 @@ try {
 
     // "AND user_id" makes sure passengers can only cancel their OWN bookings
     $stmt = $pdo->prepare(
-        "SELECT bk.status, t.departure_time
+        "SELECT bk.status, t.departure_time, p.payment_status
          FROM bookings bk JOIN trips t ON t.trip_id = bk.trip_id
+         LEFT JOIN payments p ON p.payment_id = (
+             SELECT p2.payment_id FROM payments p2 WHERE p2.booking_id = bk.booking_id
+             ORDER BY p2.payment_date DESC, p2.payment_id DESC LIMIT 1
+         )
          WHERE bk.booking_id = :id AND bk.user_id = :uid FOR UPDATE"
     );
     $stmt->execute([':id' => $bookingId, ':uid' => $uid]);
@@ -39,8 +43,11 @@ try {
     if ($booking['status'] === 'CANCELLED') {
         throw new RuntimeException('This booking is already cancelled.');
     }
-    if (strtotime($booking['departure_time']) - time() < 2 * 3600) {
-        throw new RuntimeException('Bookings cannot be cancelled within 2 hours of departure.');
+    if ($booking['payment_status'] === 'PAID') {
+        throw new RuntimeException('Paid bookings cannot be cancelled. Refunds are not available.');
+    }
+    if (strtotime($booking['departure_time']) - time() < 2 * 24 * 3600) {
+        throw new RuntimeException('Bookings can only be cancelled at least 2 days before departure.');
     }
 
     $pdo->prepare("UPDATE bookings SET status = 'CANCELLED' WHERE booking_id = :id")
@@ -48,9 +55,13 @@ try {
     // Cancelled seats become available again
     $pdo->prepare("UPDATE booking_seats SET seat_status = 'CANCELLED' WHERE booking_id = :id")
         ->execute([':id' => $bookingId]);
+    $pdo->prepare(
+        "UPDATE payments SET payment_status = 'CANCELLED', payment_date = NOW()
+         WHERE booking_id = :id AND payment_status <> 'PAID'"
+    )->execute([':id' => $bookingId]);
 
     $pdo->commit();
-    set_flash('success', 'Your booking was cancelled and the seats are available again.');
+    set_flash('success', 'Your booking was cancelled, its unpaid payment was marked cancelled, and the seats are available again.');
 } catch (RuntimeException $e) {   // includes PDOException
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

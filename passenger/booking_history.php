@@ -66,7 +66,7 @@ require __DIR__ . '/../includes/header.php';
                         <td><?= money($b['total_fare']) ?></td>
                         <td><?= status_badge($b['status']) ?></td>
                         <td><?= $b['payment_status'] ? status_badge($b['payment_status']) : '<span class="text-muted">None</span>' ?></td>
-                        <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Details</a></td>
+                        <td class="text-end"><a class="btn btn-booking-action btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Booking details</a></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

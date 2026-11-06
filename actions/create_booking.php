@@ -6,9 +6,8 @@
  * The server re-checks everything. It never trusts prices or seat numbers from the browser.
  */
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/paymongo.php';
 require_role('PASSENGER');
-
-const MAX_SEATS = 6;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('index.php');
@@ -33,8 +32,11 @@ if (!$tripId) {
 
 // Payment method must be one of the allowed values
 $method = $_POST['payment_method'] ?? '';
-if (!in_array($method, ['CASH', 'E_WALLET', 'CARD'], true)) {
+if (!in_array($method, ['CASH', 'E_WALLET', 'CARD', 'ONLINE'], true)) {
     fail('Choose a payment method.', $back);
+}
+if ($method === 'ONLINE' && !paymongo_is_configured()) {
+    fail('Online checkout is not configured yet. Choose another payment method or contact the administrator.', $back);
 }
 
 // Clean the seat list: whole numbers only, no duplicates
@@ -56,10 +58,6 @@ sort($seats);
 if (count($seats) < 1) {
     fail('Select at least one seat.', $back);
 }
-if (count($seats) > MAX_SEATS) {
-    fail('You can book up to ' . MAX_SEATS . ' seats at a time.', $back);
-}
-
 try {
     $pdo->beginTransaction();
 
@@ -80,6 +78,9 @@ try {
         if ($n > (int)$trip['total_seats']) {
             throw new RuntimeException('Seat ' . $n . ' does not exist on this bus.');
         }
+    }
+    if (count($seats) > (int)$trip['total_seats']) {
+        throw new RuntimeException('Choose only seats available on this bus.');
     }
 
     // Friendly check: are any chosen seats already taken?
@@ -119,7 +120,7 @@ try {
         $seatInsert->execute([':booking' => $bookingId, ':trip' => $tripId, ':seat' => $n, ':price' => $fare]);
     }
 
-    // 3) payment record (PENDING until the administrator records payment)
+    // 3) Online payments stay pending until verified; offline payment is due in person.
     $pdo->prepare(
         "INSERT INTO payments (booking_id, amount, payment_method, payment_status)
          VALUES (:booking, :amount, :method, 'PENDING')"
@@ -144,4 +145,7 @@ try {
 }
 
 set_flash('success', 'Reservation saved. Your booking reference is ' . $reference . '.');
+if ($method === 'ONLINE') {
+    redirect('actions/start_online_payment.php?booking_id=' . $bookingId);
+}
 redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);

@@ -30,7 +30,7 @@ require __DIR__ . '/../includes/header.php';
 <div class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="h3 mb-0">My bookings</h1>
-        <a href="<?= url('passenger/booking_history.php') ?>" class="btn btn-outline-dark btn-sm">Booking history</a>
+        <a href="<?= url('passenger/booking_history.php') ?>" class="btn btn-booking-history btn-sm"><i class="bi bi-clock-history"></i> Booking history</a>
     </div>
 
     <?php if (!$bookings): ?>
@@ -54,7 +54,7 @@ require __DIR__ . '/../includes/header.php';
                         <td><?= status_badge($b['status']) ?></td>
                         <td><?= $b['payment_status'] ? status_badge($b['payment_status']) : '<span class="text-muted">None</span>' ?></td>
                         <td class="text-end text-nowrap">
-                            <a class="btn btn-outline-secondary btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Details</a>
+                            <a class="btn btn-booking-action btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Booking details</a>
                             <?php if ($b['status'] === 'CONFIRMED'): ?>
                                 <a class="btn btn-primary btn-sm" href="<?= url('passenger/ticket.php?booking_id=' . (int)$b['booking_id']) ?>">Tickets</a>
                             <?php endif; ?>

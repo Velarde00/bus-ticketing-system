@@ -7,30 +7,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawPaymentId = $_POST['payment_id'] ?? '';
     $paymentId = filter_var(is_scalar($rawPaymentId) ? $rawPaymentId : '', FILTER_VALIDATE_INT);
     $status = is_string($_POST['payment_status'] ?? null) ? $_POST['payment_status'] : '';
-    $method = is_string($_POST['payment_method'] ?? null) ? $_POST['payment_method'] : '';
     if (!csrf_verify()) {
         $errors[] = 'Your session expired. Please try again.';
-    } elseif (!$paymentId || !in_array($status, ['PENDING', 'PAID', 'FAILED', 'REFUNDED'], true) || !in_array($method, ['CASH', 'E_WALLET', 'CARD'], true)) {
-        $errors[] = 'Choose a valid payment status and method.';
+    } elseif (!$paymentId || !in_array($status, ['PENDING', 'FAILED'], true)) {
+        $errors[] = 'Choose a valid payment status.';
     } else {
-        if ($status === 'REFUNDED') {
+        try {
+            $pdo->beginTransaction();
             $stmt = $pdo->prepare(
-                "SELECT bk.status FROM payments p JOIN bookings bk ON bk.booking_id = p.booking_id
-                 WHERE p.payment_id = :id"
+                "SELECT p.payment_method, p.payment_status, bk.status AS booking_status
+                 FROM payments p JOIN bookings bk ON bk.booking_id = p.booking_id
+                 WHERE p.payment_id = :id FOR UPDATE"
             );
             $stmt->execute([':id' => $paymentId]);
-            if ($stmt->fetchColumn() !== 'CANCELLED') {
-                $errors[] = 'Cancel the reservation before recording a refund.';
+            $paymentRecord = $stmt->fetch();
+            if (!$paymentRecord) {
+                $errors[] = 'Payment record not found.';
+            } elseif (in_array($paymentRecord['payment_status'], ['CANCELLED', 'REFUNDED'], true)
+                || $paymentRecord['booking_status'] === 'CANCELLED') {
+                $errors[] = 'Cancelled payments are managed by reservation cancellation and cannot be changed here.';
+            } elseif ($paymentRecord['payment_method'] === 'ONLINE') {
+                $errors[] = 'Online payment status is updated automatically from verified PayMongo events.';
             }
-        }
-        if (!$errors) {
-            $stmt = $pdo->prepare(
-                "UPDATE payments SET payment_status = :status, payment_method = :method, payment_date = NOW()
-                 WHERE payment_id = :id"
-            );
-            $stmt->execute([':status' => $status, ':method' => $method, ':id' => $paymentId]);
-            set_flash('success', 'Payment record updated.');
-            redirect('admin/payments/index.php');
+            if ($errors) {
+                $pdo->rollBack();
+            } else {
+                $stmt = $pdo->prepare(
+                    "UPDATE payments SET payment_status = :status, payment_date = NOW()
+                     WHERE payment_id = :id"
+                );
+                $stmt->execute([':status' => $status, ':id' => $paymentId]);
+                $pdo->commit();
+                set_flash('success', 'Payment record updated.');
+                redirect('admin/payments/index.php');
+            }
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('admin payment update: ' . $e->getMessage());
+            $errors[] = 'Could not update this payment. Please try again.';
         }
     }
 }
@@ -48,28 +64,36 @@ $layout = 'admin';
 $activePage = 'payments';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="mb-4"><h1 class="h3 mb-0">Manage payments</h1><p class="text-muted mb-0">Record payment outcomes. Mark a pending payment as paid before confirming its reservation.</p></div>
+<div class="mb-4"><h1 class="h3 mb-0">Manage payments</h1><p class="text-muted mb-0">Online payment statuses update automatically after PayMongo confirmation. Cash, card, and e-wallet payments are due in person. Cancelling an unpaid reservation automatically cancels its payment.</p></div>
 <?php if ($errors): ?><div class="alert alert-danger"><?= e(implode(' ', $errors)) ?></div><?php endif; ?>
 <div class="panel"><div class="table-responsive">
     <table class="table align-middle mb-0">
-        <thead><tr><th>Reference</th><th>Passenger</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Update</th></tr></thead>
+        <thead><tr><th>Reference</th><th>Passenger</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
         <tbody>
         <?php foreach ($payments as $payment): ?>
             <tr>
                 <td><a href="<?= url('admin/reservations/view.php?id=' . (int)$payment['booking_id']) ?>"><?= e($payment['booking_reference']) ?></a></td>
                 <td><?= e($payment['passenger']) ?></td><td><?= money($payment['amount']) ?></td>
-                <td><?= e(str_replace('_', '-', $payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td>
+                <td><?= e(payment_method_label($payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td>
                 <td><?= e(fmt_datetime($payment['payment_date'])) ?></td>
                 <td>
                     <form method="post" class="d-flex flex-wrap gap-2">
                         <?= csrf_field() ?><input type="hidden" name="payment_id" value="<?= (int)$payment['payment_id'] ?>">
+                        <?php if ($payment['payment_method'] === 'ONLINE'): ?>
+                            <span class="text-muted small align-self-center">PayMongo updates status automatically</span>
+                        <?php elseif (in_array($payment['payment_status'], ['CANCELLED', 'REFUNDED'], true)
+                            || $payment['payment_status'] === 'PAID'): ?>
+                            <span class="text-muted small align-self-center">
+                                <?= $payment['payment_status'] === 'REFUNDED' ? 'Legacy record (read only)' : ucfirst(strtolower($payment['payment_status'])) . ' (read only)' ?>
+                            </span>
+                        <?php else: ?>
                         <select name="payment_status" class="form-select form-select-sm" aria-label="Payment status">
-                            <?php foreach (['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as $status): ?><option value="<?= e($status) ?>" <?= $payment['payment_status'] === $status ? 'selected' : '' ?>><?= e(ucfirst(strtolower($status))) ?></option><?php endforeach; ?>
-                        </select>
-                        <select name="payment_method" class="form-select form-select-sm" aria-label="Payment method">
-                            <?php foreach (['CASH', 'E_WALLET', 'CARD'] as $method): ?><option value="<?= e($method) ?>" <?= $payment['payment_method'] === $method ? 'selected' : '' ?>><?= e(str_replace('_', '-', $method)) ?></option><?php endforeach; ?>
+                            <?php foreach (['PENDING', 'FAILED'] as $status): ?>
+                                <option value="<?= e($status) ?>" <?= $payment['payment_status'] === $status ? 'selected' : '' ?>><?= e(ucfirst(strtolower($status))) ?></option>
+                            <?php endforeach; ?>
                         </select>
                         <button class="btn btn-outline-dark btn-sm" type="submit">Save</button>
+                        <?php endif; ?>
                     </form>
                 </td>
             </tr>

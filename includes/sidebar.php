@@ -13,7 +13,12 @@ $items = [
     ['settings',     'Account settings',    'admin/settings.php',           'bi-gear'],
 ];
 if (($_SESSION['role'] ?? '') === 'SUPER_ADMIN') {
-    $items[] = ['administrators', 'Manage Administrators', 'admin/administrators.php', 'bi-shield-lock'];
+    array_splice($items, 1, 0, [[
+        'administrators',
+        'Manage Administrators',
+        'admin/administrators.php',
+        'bi-shield-lock',
+    ]]);
 }
 ?>
 <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-label="Admin menu">
@@ -23,20 +28,22 @@ if (($_SESSION['role'] ?? '') === 'SUPER_ADMIN') {
     </div>
     <div class="offcanvas-body d-flex flex-column p-0">
         <a class="sidebar-brand d-none d-lg-flex" href="<?= url('admin/dashboard.php') ?>">
-            <i class="bi bi-bus-front-fill"></i> <?= e(APP_NAME) ?>
-            <small>Admin</small>
+            <span class="sidebar-brand-icon"><i class="bi bi-bus-front-fill"></i></span>
+            <span class="sidebar-brand-copy"><?= e(APP_NAME) ?><small>ADMIN CONSOLE</small></span>
         </a>
         <nav class="sidebar-nav flex-grow-1">
             <?php foreach ($items as [$key, $label, $href, $icon]): ?>
                 <a href="<?= url($href) ?>" class="sidebar-link <?= $activePage === $key ? 'active' : '' ?>">
-                    <i class="bi <?= e($icon) ?>"></i> <?= e($label) ?>
+                    <span class="sidebar-link-icon"><i class="bi <?= e($icon) ?>"></i></span>
+                    <span><?= e($label) ?></span>
                 </a>
             <?php endforeach; ?>
         </nav>
         <form method="post" action="<?= url('auth/logout.php') ?>" class="sidebar-logout">
             <?= csrf_field() ?>
             <button type="submit" class="sidebar-link w-100 border-0 bg-transparent text-start">
-                <i class="bi bi-box-arrow-left"></i> Logout
+                <span class="sidebar-link-icon"><i class="bi bi-box-arrow-left"></i></span>
+                <span>Logout</span>
             </button>
         </form>
     </div>

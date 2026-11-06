@@ -41,6 +41,11 @@ require __DIR__ . '/../includes/header.php';
         <h1 class="h3 mb-0">Dashboard</h1>
         <p class="text-muted mb-0">Today is <?= e(date('l, F j, Y')) ?>.</p>
     </div>
+    <?php if (($_SESSION['role'] ?? '') === 'SUPER_ADMIN'): ?>
+        <a href="<?= url('admin/administrators.php') ?>" class="btn btn-outline-dark btn-sm">
+            <i class="bi bi-shield-lock"></i> Manage administrators
+        </a>
+    <?php endif; ?>
 </div>
 
 <h2 class="h6 text-muted mb-2">Operations</h2>
@@ -64,7 +69,7 @@ require __DIR__ . '/../includes/header.php';
 <div class="panel">
     <div class="panel-head">
         <h2 class="h5 mb-0">Latest reservations</h2>
-        <a href="<?= url('admin/reservations/index.php') ?>" class="small">View all</a>
+        <a href="<?= url('admin/reservations/index.php') ?>" class="btn btn-booking-action btn-sm">View all <i class="bi bi-arrow-right"></i></a>
     </div>
     <?php if (!$recent): ?>
         <div class="empty-state"><i class="bi bi-ticket-perforated"></i><p class="mb-0">No reservations yet.</p></div>

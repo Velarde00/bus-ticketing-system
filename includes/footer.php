@@ -9,9 +9,8 @@ $layout = $layout ?? 'public';
 <?php else: ?>
     </main>
     <footer class="site-footer">
-        <div class="container d-flex flex-column flex-md-row justify-content-between gap-2">
+        <div class="container">
             <span><strong><?= e(APP_NAME) ?></strong> Bus Ticketing and Reservation System</span>
-            <span>Information Management Project</span>
         </div>
     </footer>
 <?php endif; ?>

@@ -37,18 +37,18 @@ $seatStmt->execute([':id' => $bookingId]);
 $seats = $seatStmt->fetchAll();
 $total = array_sum(array_column($seats, 'price'));
 
-$payStmt = $pdo->prepare('SELECT amount, payment_method, payment_status FROM payments WHERE booking_id = :id ORDER BY payment_date DESC, payment_id DESC LIMIT 1');
+$payStmt = $pdo->prepare('SELECT amount, payment_method, payment_status, paymongo_checkout_url FROM payments WHERE booking_id = :id ORDER BY payment_date DESC, payment_id DESC LIMIT 1');
 $payStmt->execute([':id' => $bookingId]);
 $payment = $payStmt->fetch();
 
-$canCancel = $booking['status'] !== 'CANCELLED' && (strtotime($booking['departure_time']) - time()) >= 2 * 3600;
+$canCancel = $booking['status'] !== 'CANCELLED' && (strtotime($booking['departure_time']) - time()) >= 2 * 24 * 3600;
 
 $pageTitle = 'Booking ' . $booking['booking_reference'];
 $layout    = 'public';
 require __DIR__ . '/../includes/header.php';
 ?>
 <div class="container py-4" style="max-width: 860px;">
-    <a href="<?= url('passenger/my_bookings.php') ?>" class="small"><i class="bi bi-arrow-left"></i> My bookings</a>
+    <a href="<?= url('passenger/my_bookings.php') ?>" class="btn btn-booking-back btn-sm"><i class="bi bi-arrow-left"></i> My bookings</a>
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 mb-3">
         <div>
@@ -59,9 +59,18 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <?php if ($booking['status'] === 'PENDING'): ?>
-        <div class="alert alert-warning">Waiting for confirmation. Your ticket is issued once the administrator confirms your booking.</div>
+        <?php if ($payment && in_array($payment['payment_method'], ['CASH', 'CARD', 'E_WALLET'], true)): ?>
+            <div class="alert alert-warning">Payment is due in person. Your ticket is issued once the administrator confirms your booking.</div>
+        <?php else: ?>
+            <div class="alert alert-warning">Waiting for online payment and confirmation. Your ticket is issued once the administrator confirms your booking.</div>
+        <?php endif; ?>
     <?php elseif ($booking['status'] === 'CONFIRMED'): ?>
-        <div class="alert alert-success">Your booking is confirmed.</div>
+        <div class="alert alert-success">
+            Your booking is confirmed.
+            <?php if ($payment && in_array($payment['payment_method'], ['CASH', 'CARD', 'E_WALLET'], true)): ?>
+                Payment is due in person.
+            <?php endif; ?>
+        </div>
     <?php else: ?>
         <div class="alert alert-secondary">This booking was cancelled.</div>
     <?php endif; ?>
@@ -98,8 +107,11 @@ require __DIR__ . '/../includes/header.php';
         </div>
         <div class="p-3 border-top">
             <?php if ($payment): ?>
-                Payment: <strong><?= e(str_replace('_', '-', ucfirst(strtolower($payment['payment_method'])))) ?></strong>
+                Payment: <strong><?= e(payment_method_label($payment['payment_method'])) ?></strong>
                 &middot; <?= money($payment['amount']) ?> &middot; <?= status_badge($payment['payment_status']) ?>
+                <?php if (in_array($payment['payment_method'], ['CASH', 'CARD', 'E_WALLET'], true)): ?>
+                    <p class="small text-muted mb-0 mt-2">This payment is collected in person and is not recorded as an online payment.</p>
+                <?php endif; ?>
             <?php else: ?>
                 <span class="text-muted">No payment record yet.</span>
             <?php endif; ?>
@@ -107,17 +119,24 @@ require __DIR__ . '/../includes/header.php';
     </div>
 
     <div class="d-flex flex-wrap gap-2">
+        <?php if ($payment && $payment['payment_method'] === 'ONLINE' && $payment['payment_status'] === 'PENDING' && $booking['status'] !== 'CANCELLED'): ?>
+            <a class="btn btn-primary" href="<?= url('actions/start_online_payment.php?booking_id=' . (int)$bookingId) ?>">
+                <i class="bi bi-credit-card"></i> <?= $payment['paymongo_checkout_url'] ? 'Continue online payment' : 'Start online payment' ?>
+            </a>
+        <?php endif; ?>
         <?php if ($booking['status'] === 'CONFIRMED'): ?>
             <a class="btn btn-primary" href="<?= url('passenger/ticket.php?booking_id=' . (int)$booking['booking_id']) ?>"><i class="bi bi-ticket-perforated"></i> View tickets</a>
         <?php endif; ?>
-        <?php if ($canCancel): ?>
+        <?php if ($canCancel && (!$payment || $payment['payment_status'] !== 'PAID')): ?>
             <form method="post" action="<?= url('actions/cancel_booking.php') ?>" data-confirm="Cancel this booking? Your seats will be released.">
                 <?= csrf_field() ?>
                 <input type="hidden" name="booking_id" value="<?= (int)$booking['booking_id'] ?>">
                 <button type="submit" class="btn btn-outline-danger">Cancel booking</button>
             </form>
-        <?php elseif ($booking['status'] !== 'CANCELLED'): ?>
-            <span class="text-muted small align-self-center">Bookings cannot be cancelled within 2 hours of departure.</span>
+        <?php elseif ($booking['status'] !== 'CANCELLED' && $payment && $payment['payment_status'] === 'PAID'): ?>
+            <span class="text-muted small align-self-center">Paid bookings cannot be cancelled; refunds are not available.</span>
+        <?php elseif ($booking['status'] !== 'CANCELLED' && !$canCancel): ?>
+            <span class="text-muted small align-self-center">Bookings can only be cancelled at least 2 days before departure.</span>
         <?php endif; ?>
     </div>
 </div>

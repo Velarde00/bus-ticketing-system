@@ -5,9 +5,8 @@
  * is sent to actions/create_booking.php.
  */
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/paymongo.php';
 require_role('PASSENGER');
-
-const MAX_SEATS_PER_BOOKING = 6;
 
 $tripId = filter_var($_GET['trip_id'] ?? null, FILTER_VALIDATE_INT);
 if (!$tripId) {
@@ -56,7 +55,7 @@ require __DIR__ . '/../includes/header.php';
     </p>
 
     <form method="post" action="<?= url('actions/create_booking.php') ?>" id="bookingForm"
-          data-fare="<?= e($trip['fare']) ?>" data-max="<?= MAX_SEATS_PER_BOOKING ?>">
+          data-fare="<?= e($trip['fare']) ?>" data-max="<?= $freeNow ?>">
         <?= csrf_field() ?>
         <input type="hidden" name="trip_id" value="<?= (int)$trip['trip_id'] ?>">
 
@@ -112,12 +111,25 @@ require __DIR__ . '/../includes/header.php';
                             <option value="CASH">Cash</option>
                             <option value="E_WALLET">E-wallet</option>
                             <option value="CARD">Card</option>
+                            <?php if (paymongo_is_configured()): ?>
+                                <option value="ONLINE">Online payment (PayMongo)</option>
+                            <?php else: ?>
+                                <option value="" disabled>Online payment (PayMongo setup required)</option>
+                            <?php endif; ?>
                         </select>
-                        <div class="form-text">No money is charged here. The administrator records your payment and confirms the booking.</div>
+                        <div class="form-text">Cash, card, and e-wallet are paid in person. Choose online payment to pay ahead through secure checkout.</div>
+                    </div>
+                    <div class="ewallet-qr-notice" id="ewalletQrNotice" role="status" aria-live="polite" hidden>
+                        <i class="bi bi-qr-code" aria-hidden="true"></i>
+                        <span>E-wallet payments selected here are recorded for administrator verification. For QR Ph, GCash, Maya, or card checkout, choose Online payment when it is configured.</span>
+                    </div>
+                    <div class="ewallet-qr-notice" id="onlinePaymentNotice" role="status" aria-live="polite" hidden>
+                        <i class="bi bi-shield-check" aria-hidden="true"></i>
+                        <span>You’ll continue to PayMongo’s secure checkout. Your payment remains pending until an administrator verifies it.</span>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100" id="confirmBtn" disabled>Confirm reservation</button>
-                    <p class="small text-muted mt-2 mb-0">You can book up to <?= MAX_SEATS_PER_BOOKING ?> seats at a time.</p>
+                    <p class="small text-muted mt-2 mb-0">Select one or more available seats. They’ll be included in this reservation.</p>
                 </div>
             </div>
         </div>
@@ -133,6 +145,14 @@ require __DIR__ . '/../includes/header.php';
     var list  = document.getElementById('selectedSeats');
     var total = document.getElementById('totalFare');
     var btn   = document.getElementById('confirmBtn');
+    var method = document.getElementById('payment_method');
+    var qrNotice = document.getElementById('ewalletQrNotice');
+    var onlineNotice = document.getElementById('onlinePaymentNotice');
+
+    function updatePaymentNotice() {
+        qrNotice.hidden = method.value !== 'E_WALLET';
+        onlineNotice.hidden = method.value !== 'ONLINE';
+    }
 
     function update() {
         var picked = [];
@@ -152,6 +172,8 @@ require __DIR__ . '/../includes/header.php';
             update();
         });
     });
+    method.addEventListener('change', updatePaymentNotice);
+    updatePaymentNotice();
     update();
 })();
 </script>

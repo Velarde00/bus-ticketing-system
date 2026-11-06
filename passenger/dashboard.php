@@ -62,7 +62,7 @@ require __DIR__ . '/../includes/header.php';
     <div class="panel">
         <div class="panel-head">
             <h2 class="h5 mb-0">Latest bookings</h2>
-            <a href="<?= url('passenger/booking_history.php') ?>" class="small">Booking history</a>
+            <a href="<?= url('passenger/booking_history.php') ?>" class="btn btn-booking-action btn-sm"><i class="bi bi-clock-history"></i> Booking history</a>
         </div>
         <?php if (!$recent): ?>
             <div class="empty-state">
@@ -87,7 +87,7 @@ require __DIR__ . '/../includes/header.php';
                                 <?php if ($b['status'] === 'CONFIRMED'): ?>
                                     <a class="btn btn-outline-dark btn-sm" href="<?= url('passenger/ticket.php?booking_id=' . (int)$b['booking_id']) ?>">Tickets</a>
                                 <?php else: ?>
-                                    <a class="btn btn-outline-secondary btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Details</a>
+                                    <a class="btn btn-booking-action btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Booking details</a>
                                 <?php endif; ?>
                             </td>
                         </tr>

@@ -8,19 +8,42 @@ require_once __DIR__ . '/includes/auth.php';
 $origins = $pdo->query("SELECT DISTINCT origin FROM routes WHERE status = 'ACTIVE' ORDER BY origin")->fetchAll(PDO::FETCH_COLUMN);
 $destinations = $pdo->query("SELECT DISTINCT destination FROM routes WHERE status = 'ACTIVE' ORDER BY destination")->fetchAll(PDO::FETCH_COLUMN);
 
-// Routes with their lowest upcoming fare
+// Routes with their upcoming trips and lowest available fare
 $routes = $pdo->query(
     "SELECT r.origin, r.destination, r.distance_km,
-            MIN(t.fare) AS from_fare, COUNT(t.trip_id) AS upcoming_trips
+            COUNT(CASE WHEN b.bus_id IS NOT NULL THEN t.trip_id END) AS upcoming_trips
      FROM routes r
      LEFT JOIN trips t ON t.route_id = r.route_id AND t.status = 'SCHEDULED' AND t.departure_time > NOW()
+     LEFT JOIN buses b ON b.bus_id = t.bus_id AND b.status = 'ACTIVE'
      WHERE r.status = 'ACTIVE'
      GROUP BY r.route_id, r.origin, r.destination, r.distance_km
      ORDER BY r.origin, r.destination"
 )->fetchAll();
 
+$scheduleRows = $pdo->query(
+    "SELECT r.origin, r.destination, t.trip_id, t.departure_time, t.arrival_time, t.fare,
+            b.bus_number, b.bus_type,
+            b.total_seats - (
+                SELECT COUNT(*) FROM booking_seats bs
+                WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED'
+            ) AS available_seats
+     FROM trips t
+     JOIN routes r ON r.route_id = t.route_id
+     JOIN buses b ON b.bus_id = t.bus_id
+     WHERE r.status = 'ACTIVE' AND b.status = 'ACTIVE'
+       AND t.status = 'SCHEDULED' AND t.departure_time > NOW()
+     ORDER BY r.origin, r.destination, t.departure_time"
+)->fetchAll();
+
+$tripsByRoute = [];
+foreach ($scheduleRows as $trip) {
+    $routeKey = $trip['origin'] . "\0" . $trip['destination'];
+    $tripsByRoute[$routeKey][] = $trip;
+}
+
 $selOrigin = $_GET['origin'] ?? '';
 $selDest   = $_GET['destination'] ?? '';
+$canBook = !empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'PASSENGER';
 
 $pageTitle = 'Book your bus seat';
 $layout    = 'public';
@@ -75,25 +98,68 @@ require __DIR__ . '/includes/header.php';
 
 <section class="container py-5">
     <h2 class="h4 mb-1">Routes we serve</h2>
-    <p class="text-muted mb-4">Choose a route to fill in the search form.</p>
+    <p class="text-muted mb-4">See upcoming departure dates, times, fares, and available seats for each route.</p>
     <div class="row g-3">
         <?php foreach ($routes as $r): ?>
             <div class="col-md-6 col-xl-4">
-                <a class="route-card" href="<?= url('index.php') ?>?origin=<?= urlencode($r['origin']) ?>&amp;destination=<?= urlencode($r['destination']) ?>#search">
-                    <div class="route-line">
+                <div class="route-card">
+                    <a class="route-line" href="<?= url('index.php') ?>?origin=<?= urlencode($r['origin']) ?>&amp;destination=<?= urlencode($r['destination']) ?>#search">
                         <span><?= e($r['origin']) ?></span>
                         <i class="bi bi-arrow-right"></i>
                         <span><?= e($r['destination']) ?></span>
-                    </div>
+                    </a>
                     <div class="route-meta">
                         <span><?= e(number_format((float)$r['distance_km'])) ?> km</span>
-                        <?php if ($r['upcoming_trips'] > 0): ?>
-                            <span><?= (int)$r['upcoming_trips'] ?> upcoming trip<?= $r['upcoming_trips'] > 1 ? 's' : '' ?>, from <strong><?= money($r['from_fare']) ?></strong></span>
+                    </div>
+                    <?php
+                    $routeKey = $r['origin'] . "\0" . $r['destination'];
+                    $routeTrips = $tripsByRoute[$routeKey] ?? [];
+                    ?>
+                    <div class="route-schedules">
+                        <div class="route-schedules-heading">
+                            <strong>Upcoming departures</strong>
+                            <?php if ((int)$r['upcoming_trips'] > 0): ?>
+                                <span><?= (int)$r['upcoming_trips'] ?> trip<?= (int)$r['upcoming_trips'] === 1 ? '' : 's' ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($routeTrips): ?>
+                            <?php foreach ($routeTrips as $trip): ?>
+                                <div class="route-schedule">
+                                    <div>
+                                        <span class="route-schedule-date"><?= e(fmt_date($trip['departure_time'])) ?></span>
+                                        <span class="route-schedule-time"><?= e(fmt_time($trip['departure_time'])) ?></span>
+                                        <span class="small text-muted"><?= e($trip['bus_number']) ?></span>
+                                    </div>
+                                    <div class="route-schedule-availability">
+                                        <?php if ((int)$trip['available_seats'] > 0): ?>
+                                            <span><?= (int)$trip['available_seats'] ?> seats left</span>
+                                            <strong><?= money($trip['fare']) ?></strong>
+                                        <?php else: ?>
+                                            <span class="text-danger">Sold out</span>
+                                            <strong><?= money($trip['fare']) ?></strong>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php
+                                    $tripUrl = $canBook
+                                        ? url('passenger/seat_selection.php?trip_id=' . (int)$trip['trip_id'])
+                                        : url('passenger/trip_results.php?origin=' . urlencode($trip['origin'])
+                                            . '&destination=' . urlencode($trip['destination'])
+                                            . '&date=' . urlencode(date('Y-m-d', strtotime($trip['departure_time']))));
+                                    ?>
+                                    <?php if ((int)$trip['available_seats'] > 0): ?>
+                                        <a class="btn btn-primary btn-sm route-schedule-action" href="<?= e($tripUrl) ?>">
+                                            <?= $canBook ? 'Select seats' : 'View trip' ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="btn btn-secondary btn-sm route-schedule-action disabled" aria-disabled="true">Sold out</span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
                         <?php else: ?>
-                            <span>No trips scheduled yet</span>
+                            <span class="small text-muted">No upcoming trips scheduled.</span>
                         <?php endif; ?>
                     </div>
-                </a>
+                </div>
             </div>
         <?php endforeach; ?>
         <?php if (!$routes): ?>

@@ -38,7 +38,7 @@ require __DIR__ . '/../../includes/header.php';
     <div><h1 class="h3 mb-0"><?= e($booking['booking_reference']) ?></h1><p class="text-muted mb-0">Booked <?= e(fmt_datetime($booking['booking_date'])) ?></p></div>
     <?= status_badge($booking['status']) ?>
 </div>
-<a href="<?= url('admin/reservations/index.php') ?>" class="small"><i class="bi bi-arrow-left"></i> All reservations</a>
+<a href="<?= url('admin/reservations/index.php') ?>" class="btn btn-booking-action btn-sm"><i class="bi bi-arrow-left"></i> All reservations</a>
 <div class="panel mt-3 mb-3">
     <div class="panel-head"><h2 class="h5 mb-0">Passenger and trip</h2></div>
     <dl class="detail-grid p-3 mb-0">
@@ -58,7 +58,7 @@ require __DIR__ . '/../../includes/header.php';
 <div class="panel">
     <div class="panel-head"><h2 class="h5 mb-0">Payments</h2></div>
     <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead><tbody>
-        <?php foreach ($payments as $payment): ?><tr><td><?= money($payment['amount']) ?></td><td><?= e(str_replace('_', '-', $payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td><td><?= e(fmt_datetime($payment['payment_date'])) ?></td></tr><?php endforeach; ?>
+        <?php foreach ($payments as $payment): ?><tr><td><?= money($payment['amount']) ?></td><td><?= e(payment_method_label($payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td><td><?= e(fmt_datetime($payment['payment_date'])) ?></td></tr><?php endforeach; ?>
         <?php if (!$payments): ?><tr><td colspan="4" class="text-muted text-center py-3">No payment records.</td></tr><?php endif; ?>
     </tbody></table></div>
 </div>

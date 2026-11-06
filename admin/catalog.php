@@ -222,7 +222,7 @@ require __DIR__ . '/../includes/header.php';
         <form method="post" class="panel p-3">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="save">
-            <input type="hidden" name="id" value="<?= (int)($record['id'] ?? $editId ?? 0) ?>">
+            <input type="hidden" name="id" value="<?= (int)($record[$config['key']] ?? $editId ?? 0) ?>">
             <h2 class="h5 mb-3"><?= $record ? 'Edit record' : 'Add record' ?></h2>
             <?php foreach ($config['fields'] as $name => $definition): ?>
                 <?php
@@ -246,7 +246,7 @@ require __DIR__ . '/../includes/header.php';
                             <?php foreach ($optionGroups as $group => $options): ?>
                                 <?php if ($group !== ''): ?><optgroup label="<?= e($group) ?>"><?php endif; ?>
                                 <?php foreach ($options as $optionValue => $label): ?>
-                                    <?php if (is_int($optionValue)): $optionValue = $label; endif; ?>
+                                    <?php if ($isGrouped && is_int($optionValue)): $optionValue = $label; endif; ?>
                                     <option value="<?= e($optionValue) ?>" <?= (string)$value === (string)$optionValue ? 'selected' : '' ?>><?= e(str_replace('_', ' ', $label)) ?></option>
                                 <?php endforeach; ?>
                                 <?php if ($group !== ''): ?></optgroup><?php endif; ?>

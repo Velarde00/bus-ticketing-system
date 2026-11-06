@@ -14,7 +14,10 @@ if ($bookingId) {
         "SELECT bk.booking_id, bk.booking_reference, bk.status,
                 CONCAT(u.first_name, ' ', u.last_name) AS passenger_name,
                 t.departure_time, r.origin, r.destination, b.bus_number, b.bus_type,
-                CONCAT(d.first_name, ' ', d.last_name) AS driver_name
+                CONCAT(d.first_name, ' ', d.last_name) AS driver_name,
+                (SELECT p.payment_method FROM payments p
+                 WHERE p.booking_id = bk.booking_id
+                 ORDER BY p.payment_date DESC, p.payment_id DESC LIMIT 1) AS payment_method
          FROM bookings bk
          JOIN users   u ON u.user_id   = bk.user_id
          JOIN trips   t ON t.trip_id   = bk.trip_id
@@ -51,7 +54,7 @@ require __DIR__ . '/../includes/header.php';
 ?>
 <div class="container py-4" style="max-width: 860px;">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
-        <a href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$bookingId) ?>" class="small"><i class="bi bi-arrow-left"></i> Booking details</a>
+        <a href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$bookingId) ?>" class="btn btn-booking-action btn-sm"><i class="bi bi-arrow-left"></i> Booking details</a>
         <?php if ($tickets): ?>
             <button type="button" class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print tickets</button>
         <?php endif; ?>
@@ -62,6 +65,12 @@ require __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 
     <?php foreach ($tickets as $t): ?>
+        <?php
+        $paymentMethod = $booking['payment_method'] ?: 'UNKNOWN';
+        $qrPayload = 'BusTicket|Reference:' . $booking['booking_reference']
+            . '|Ticket:' . $t['ticket_number']
+            . '|Payment method:' . payment_method_label($paymentMethod);
+        ?>
         <div class="ticket">
             <div class="ticket-main">
                 <div class="ticket-top">
@@ -79,6 +88,9 @@ require __DIR__ . '/../includes/header.php';
                     <div><dt>Booking reference</dt><dd><?= e($booking['booking_reference']) ?></dd></div>
                     <div><dt>Booking status</dt><dd><?= e(ucfirst(strtolower($booking['status']))) ?></dd></div>
                 </dl>
+                <div class="ticket-qr" data-qr-value="<?= e($qrPayload) ?>" role="img" aria-label="Scan for ticket reference and payment method">
+                    <span class="ticket-qr-fallback">QR code unavailable</span>
+                </div>
             </div>
             <div class="ticket-stub">
                 <span>Seat</span>
@@ -87,4 +99,23 @@ require __DIR__ . '/../includes/header.php';
         </div>
     <?php endforeach; ?>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+document.querySelectorAll('.ticket-qr').forEach(function (container) {
+    if (typeof QRCode === 'undefined') {
+        container.setAttribute('aria-label', 'QR code unavailable. ' + container.textContent);
+        return;
+    }
+
+    container.textContent = '';
+    new QRCode(container, {
+        text: container.dataset.qrValue,
+        width: 96,
+        height: 96,
+        colorDark: '#12263A',
+        colorLight: '#FFFFFF',
+        correctLevel: QRCode.CorrectLevel.M
+    });
+});
+</script>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

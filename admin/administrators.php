@@ -95,7 +95,7 @@ $layout = 'admin';
 $activePage = 'administrators';
 require __DIR__ . '/../includes/header.php';
 ?>
-<div class="mb-4">
+<div class="mb-3">
     <h1 class="h3 mb-0">Manage administrators</h1>
     <p class="text-muted mb-0">Create administrator accounts, or disable and re-enable administrator access.</p>
 </div>
@@ -103,22 +103,22 @@ require __DIR__ . '/../includes/header.php';
     <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul></div>
 <?php endif; ?>
 
-<div class="row g-4 mb-4">
-    <div class="col-xl-7">
-        <form method="post" class="panel p-4" novalidate>
+<div class="mb-3">
+    <form method="post" class="panel p-3 p-lg-4" novalidate>
             <?= csrf_field() ?><input type="hidden" name="action" value="create">
             <h2 class="h5 mb-3">Create administrator</h2>
             <div class="row g-3">
-                <div class="col-md-6"><label class="form-label" for="first_name">First name</label><input class="form-control" id="first_name" name="first_name" maxlength="50" value="<?= e($old['first_name'] ?? '') ?>" required></div>
-                <div class="col-md-6"><label class="form-label" for="last_name">Last name</label><input class="form-control" id="last_name" name="last_name" maxlength="50" value="<?= e($old['last_name'] ?? '') ?>" required></div>
-                <div class="col-md-7"><label class="form-label" for="email">Email</label><input class="form-control" type="email" id="email" name="email" maxlength="100" value="<?= e($old['email'] ?? '') ?>" required></div>
-                <div class="col-md-5"><label class="form-label" for="phone_number">Mobile number</label><input class="form-control" type="tel" id="phone_number" name="phone_number" value="<?= e($old['phone_number'] ?? '') ?>" placeholder="09171234567" required></div>
+                <div class="col-md-6 col-xl-3"><label class="form-label" for="first_name">First name</label><input class="form-control" id="first_name" name="first_name" maxlength="50" value="<?= e($old['first_name'] ?? '') ?>" required></div>
+                <div class="col-md-6 col-xl-3"><label class="form-label" for="last_name">Last name</label><input class="form-control" id="last_name" name="last_name" maxlength="50" value="<?= e($old['last_name'] ?? '') ?>" required></div>
+                <div class="col-md-7 col-xl-3"><label class="form-label" for="email">Email</label><input class="form-control" type="email" id="email" name="email" maxlength="100" value="<?= e($old['email'] ?? '') ?>" required></div>
+                <div class="col-md-5 col-xl-3"><label class="form-label" for="phone_number">Mobile number</label><input class="form-control" type="tel" id="phone_number" name="phone_number" value="<?= e($old['phone_number'] ?? '') ?>" placeholder="09171234567" required></div>
                 <div class="col-md-6"><label class="form-label" for="password">Temporary password</label><div class="input-group"><input class="form-control" type="password" id="password" name="password" autocomplete="new-password" required><button class="btn btn-outline-secondary" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div><div class="form-text">At least 8 characters, including a letter and a number.</div></div>
                 <div class="col-md-6"><label class="form-label" for="confirm_password">Confirm password</label><div class="input-group"><input class="form-control" type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required><button class="btn btn-outline-secondary" type="button" data-password-toggle="confirm_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
             </div>
-            <button type="submit" class="btn btn-primary mt-3">Create administrator</button>
-        </form>
-    </div>
+            <div class="administrator-form-actions">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Create administrator</button>
+            </div>
+    </form>
 </div>
 
 <div class="panel">

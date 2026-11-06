@@ -90,6 +90,16 @@ function fmt_time(?string $value): string
     return $value ? date('g:i A', strtotime($value)) : '—';
 }
 
+function payment_method_label(string $method): string
+{
+    return [
+        'CASH' => 'Cash',
+        'E_WALLET' => 'E-wallet',
+        'CARD' => 'Card',
+        'ONLINE' => 'Online (PayMongo)',
+    ][$method] ?? str_replace('_', '-', ucfirst(strtolower($method)));
+}
+
 /** Keep what the user typed in a form after an error. */
 function old(string $key, string $default = ''): string
 {
