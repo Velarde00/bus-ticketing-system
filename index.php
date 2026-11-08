@@ -1,12 +1,8 @@
 <?php
 /**
- * index.php  Homepage with the trip search form.
+ * index.php  Landing page with upcoming routes and departures.
  */
 require_once __DIR__ . '/includes/auth.php';
-
-// Cities for the dropdowns (only routes that are ACTIVE)
-$origins = $pdo->query("SELECT DISTINCT origin FROM routes WHERE status = 'ACTIVE' ORDER BY origin")->fetchAll(PDO::FETCH_COLUMN);
-$destinations = $pdo->query("SELECT DISTINCT destination FROM routes WHERE status = 'ACTIVE' ORDER BY destination")->fetchAll(PDO::FETCH_COLUMN);
 
 // Routes with their upcoming trips and lowest available fare
 $routes = $pdo->query(
@@ -41,8 +37,6 @@ foreach ($scheduleRows as $trip) {
     $tripsByRoute[$routeKey][] = $trip;
 }
 
-$selOrigin = $_GET['origin'] ?? '';
-$selDest   = $_GET['destination'] ?? '';
 $canBook = !empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'PASSENGER';
 
 $pageTitle = 'Book your bus seat';
@@ -52,45 +46,9 @@ require __DIR__ . '/includes/header.php';
 <section class="hero">
     <div class="container">
         <div class="row align-items-center g-5">
-            <div class="col-lg-6">
+            <div class="col-12">
                 <h1 class="hero-title">Pick your trip.<br>Pick your seat.<br>Be on the bus.</h1>
-                <p class="hero-sub">Search Philippine bus routes, choose seats on the seat map, and get a ticket you can print.</p>
-            </div>
-            <div class="col-lg-6" id="search">
-                <form class="ticket-panel" method="get" action="<?= url('passenger/trip_results.php') ?>">
-                    <h2 class="h5 mb-3">Find a trip</h2>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-sm-5">
-                            <label for="origin" class="form-label">From</label>
-                            <select class="form-select" id="origin" name="origin" required>
-                                <option value="">Origin</option>
-                                <?php foreach ($origins as $city): ?>
-                                    <option value="<?= e($city) ?>" <?= $city === $selOrigin ? 'selected' : '' ?>><?= e($city) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-sm-2 text-center">
-                            <button type="button" class="btn btn-outline-dark btn-sm" id="swapCities" aria-label="Swap origin and destination">
-                                <i class="bi bi-arrow-left-right"></i>
-                            </button>
-                        </div>
-                        <div class="col-sm-5">
-                            <label for="destination" class="form-label">To</label>
-                            <select class="form-select" id="destination" name="destination" required>
-                                <option value="">Destination</option>
-                                <?php foreach ($destinations as $city): ?>
-                                    <option value="<?= e($city) ?>" <?= $city === $selDest ? 'selected' : '' ?>><?= e($city) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label for="date" class="form-label">Departure date</label>
-                            <input type="date" class="form-control" id="date" name="date" min="<?= date('Y-m-d') ?>" value="<?= e($_GET['date'] ?? '') ?>" required>
-                        </div>
-                    </div>
-                    <div class="ticket-tear"></div>
-                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search buses</button>
-                </form>
+                <p class="hero-sub">Browse upcoming Philippine bus trips, check the seat map, and reserve your seat.</p>
             </div>
         </div>
     </div>
@@ -103,11 +61,11 @@ require __DIR__ . '/includes/header.php';
         <?php foreach ($routes as $r): ?>
             <div class="col-md-6 col-xl-4">
                 <div class="route-card">
-                    <a class="route-line" href="<?= url('index.php') ?>?origin=<?= urlencode($r['origin']) ?>&amp;destination=<?= urlencode($r['destination']) ?>#search">
+                    <div class="route-line">
                         <span><?= e($r['origin']) ?></span>
                         <i class="bi bi-arrow-right"></i>
                         <span><?= e($r['destination']) ?></span>
-                    </a>
+                    </div>
                     <div class="route-meta">
                         <span><?= e(number_format((float)$r['distance_km'])) ?> km</span>
                     </div>
@@ -128,7 +86,7 @@ require __DIR__ . '/includes/header.php';
                                     <div>
                                         <span class="route-schedule-date"><?= e(fmt_date($trip['departure_time'])) ?></span>
                                         <span class="route-schedule-time"><?= e(fmt_time($trip['departure_time'])) ?></span>
-                                        <span class="small text-muted"><?= e($trip['bus_number']) ?></span>
+                                        <span class="small text-muted"><?= e($trip['bus_number']) ?> · <?= e($trip['bus_type']) ?></span>
                                     </div>
                                     <div class="route-schedule-availability">
                                         <?php if ((int)$trip['available_seats'] > 0): ?>

@@ -5,7 +5,6 @@
  * is sent to actions/create_booking.php.
  */
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/paymongo.php';
 require_role('PASSENGER');
 
 $tripId = filter_var($_GET['trip_id'] ?? null, FILTER_VALIDATE_INT);
@@ -54,10 +53,11 @@ require __DIR__ . '/../includes/header.php';
         &middot; Driver <?= e($trip['driver_name']) ?> &middot; <?= money($trip['fare']) ?> per seat
     </p>
 
-    <form method="post" action="<?= url('actions/create_booking.php') ?>" id="bookingForm"
-          data-fare="<?= e($trip['fare']) ?>" data-max="<?= $freeNow ?>">
+        <form method="post" action="<?= url('actions/create_booking.php') ?>" id="bookingForm"
+            data-fare="<?= e($trip['fare']) ?>" data-max="<?= $freeNow ?>">
         <?= csrf_field() ?>
         <input type="hidden" name="trip_id" value="<?= (int)$trip['trip_id'] ?>">
+            <input type="hidden" name="payment_method" value="MANUAL_TRANSFER">
 
         <div class="row g-4">
             <div class="col-lg-7">
@@ -105,30 +105,31 @@ require __DIR__ . '/../includes/header.php';
                         <dt>Total</dt><dd class="summary-total" id="totalFare">₱0.00</dd>
                     </dl>
 
-                    <div class="mb-3">
-                        <label for="payment_method" class="form-label">How will you pay?</label>
-                        <select class="form-select" id="payment_method" name="payment_method" required>
-                            <option value="CASH">Cash</option>
-                            <option value="E_WALLET">E-wallet</option>
-                            <option value="CARD">Card</option>
-                            <?php if (paymongo_is_configured()): ?>
-                                <option value="ONLINE">Online payment (PayMongo)</option>
-                            <?php else: ?>
-                                <option value="" disabled>Online payment (PayMongo setup required)</option>
-                            <?php endif; ?>
-                        </select>
-                        <div class="form-text">Cash, card, and e-wallet are paid in person. Choose online payment to pay ahead through secure checkout.</div>
-                    </div>
-                    <div class="ewallet-qr-notice" id="ewalletQrNotice" role="status" aria-live="polite" hidden>
-                        <i class="bi bi-qr-code" aria-hidden="true"></i>
-                        <span>E-wallet payments selected here are recorded for administrator verification. For QR Ph, GCash, Maya, or card checkout, choose Online payment when it is configured.</span>
-                    </div>
-                    <div class="ewallet-qr-notice" id="onlinePaymentNotice" role="status" aria-live="polite" hidden>
-                        <i class="bi bi-shield-check" aria-hidden="true"></i>
-                        <span>You’ll continue to PayMongo’s secure checkout. Your payment remains pending until an administrator verifies it.</span>
-                    </div>
+                    <fieldset class="mb-3">
+                        <legend class="form-label">Choose a transfer method</legend>
+                        <div class="payment-option-list">
+                            <label class="form-check payment-option">
+                                <input class="form-check-input payment-option-input" type="radio" name="online_payment_option" value="GCASH" required>
+                                <span><strong>GCash</strong><small class="d-block text-muted">Pay through GCash</small></span>
+                            </label>
+                            <label class="form-check payment-option">
+                                <input class="form-check-input payment-option-input" type="radio" name="online_payment_option" value="MAYA">
+                                <span><strong>Maya</strong><small class="d-block text-muted">Pay through Maya</small></span>
+                            </label>
+                            <label class="form-check payment-option">
+                                <input class="form-check-input payment-option-input" type="radio" name="online_payment_option" value="MARIBANK">
+                                <span><strong>MariBank</strong><small class="d-block text-muted">Transfer to the configured MariBank account</small></span>
+                            </label>
+                            <label class="form-check payment-option">
+                                <input class="form-check-input payment-option-input" type="radio" name="online_payment_option" value="BANK_TRANSFER">
+                                <span><strong>Online bank transfer</strong><small class="d-block text-muted">BPI or UnionBank</small></span>
+                            </label>
+                        </div>
+                    </fieldset>
 
-                    <button type="submit" class="btn btn-primary w-100" id="confirmBtn" disabled>Confirm reservation</button>
+                    <div class="alert alert-info"><i class="bi bi-shield-check" aria-hidden="true"></i> Reserve your seats, transfer the fare using your selected method, then submit the transfer reference for verification.</div>
+
+                    <button type="submit" class="btn btn-primary w-100" id="confirmBtn" disabled>Reserve selected seats</button>
                     <p class="small text-muted mt-2 mb-0">Select one or more available seats. They’ll be included in this reservation.</p>
                 </div>
             </div>
@@ -142,17 +143,10 @@ require __DIR__ . '/../includes/header.php';
     var fare  = parseFloat(form.dataset.fare);
     var max   = parseInt(form.dataset.max, 10);
     var boxes = form.querySelectorAll('.seat-input');
+    var paymentOptions = form.querySelectorAll('.payment-option-input');
     var list  = document.getElementById('selectedSeats');
     var total = document.getElementById('totalFare');
     var btn   = document.getElementById('confirmBtn');
-    var method = document.getElementById('payment_method');
-    var qrNotice = document.getElementById('ewalletQrNotice');
-    var onlineNotice = document.getElementById('onlinePaymentNotice');
-
-    function updatePaymentNotice() {
-        qrNotice.hidden = method.value !== 'E_WALLET';
-        onlineNotice.hidden = method.value !== 'ONLINE';
-    }
 
     function update() {
         var picked = [];
@@ -160,7 +154,8 @@ require __DIR__ . '/../includes/header.php';
         picked.sort(function (a, b) { return a - b; });
         list.textContent = picked.length ? picked.join(', ') : 'None yet';
         total.textContent = '₱' + (picked.length * fare).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        btn.disabled = picked.length === 0;
+        var methodPicked = Array.from(paymentOptions).some(function (option) { return option.checked; });
+        btn.disabled = picked.length === 0 || !methodPicked;
     }
 
     boxes.forEach(function (b) {
@@ -172,8 +167,9 @@ require __DIR__ . '/../includes/header.php';
             update();
         });
     });
-    method.addEventListener('change', updatePaymentNotice);
-    updatePaymentNotice();
+    paymentOptions.forEach(function (option) {
+        option.addEventListener('change', update);
+    });
     update();
 })();
 </script>

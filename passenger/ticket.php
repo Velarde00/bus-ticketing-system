@@ -17,7 +17,10 @@ if ($bookingId) {
                 CONCAT(d.first_name, ' ', d.last_name) AS driver_name,
                 (SELECT p.payment_method FROM payments p
                  WHERE p.booking_id = bk.booking_id
-                 ORDER BY p.payment_date DESC, p.payment_id DESC LIMIT 1) AS payment_method
+                 ORDER BY p.payment_date DESC, p.payment_id DESC LIMIT 1) AS payment_method,
+                (SELECT p.online_payment_option FROM payments p
+                 WHERE p.booking_id = bk.booking_id
+                 ORDER BY p.payment_date DESC, p.payment_id DESC LIMIT 1) AS online_payment_option
          FROM bookings bk
          JOIN users   u ON u.user_id   = bk.user_id
          JOIN trips   t ON t.trip_id   = bk.trip_id
@@ -67,9 +70,12 @@ require __DIR__ . '/../includes/header.php';
     <?php foreach ($tickets as $t): ?>
         <?php
         $paymentMethod = $booking['payment_method'] ?: 'UNKNOWN';
+        $paymentLabel = $booking['online_payment_option']
+            ? online_payment_option_label($booking['online_payment_option'])
+            : payment_method_label($paymentMethod);
         $qrPayload = 'BusTicket|Reference:' . $booking['booking_reference']
             . '|Ticket:' . $t['ticket_number']
-            . '|Payment method:' . payment_method_label($paymentMethod);
+            . '|Payment method:' . $paymentLabel;
         ?>
         <div class="ticket">
             <div class="ticket-main">

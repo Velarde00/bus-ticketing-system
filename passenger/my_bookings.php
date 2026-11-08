@@ -37,7 +37,7 @@ require __DIR__ . '/../includes/header.php';
         <div class="panel"><div class="empty-state">
             <i class="bi bi-ticket-perforated"></i>
             <p class="mb-2">You have no upcoming bookings.</p>
-            <a href="<?= url('index.php') ?>#search" class="btn btn-primary btn-sm">Search trips</a>
+            <a href="<?= url('passenger/dashboard.php') ?>" class="btn btn-primary btn-sm">Browse available trips</a>
         </div></div>
     <?php else: ?>
         <div class="panel"><div class="table-responsive">

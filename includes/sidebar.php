@@ -9,6 +9,7 @@ $items = [
     ['passengers',   'Manage Passengers',   'admin/passengers/index.php',   'bi-people'],
     ['reservations', 'Manage Reservations', 'admin/reservations/index.php', 'bi-ticket-perforated'],
     ['payments',     'Manage Payments',     'admin/payments/index.php',     'bi-cash-coin'],
+    ['refunds',      'Manage Refunds',      'admin/refunds/index.php',      'bi-arrow-counterclockwise'],
     ['reports',      'Reports',             'admin/reports/sales.php',      'bi-graph-up'],
     ['settings',     'Account settings',    'admin/settings.php',           'bi-gear'],
 ];

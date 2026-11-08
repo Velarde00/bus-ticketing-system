@@ -28,6 +28,20 @@ CREATE TABLE users (
     UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB;
 
+CREATE TABLE notifications (
+    notification_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    message VARCHAR(500) NOT NULL,
+    link VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at DATETIME NULL,
+    PRIMARY KEY (notification_id),
+    KEY idx_notifications_user_unread (user_id, read_at, created_at),
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- ---------------------------------------------------------------------
 -- TABLE 2: buses
 -- ---------------------------------------------------------------------
@@ -109,6 +123,7 @@ CREATE TABLE bookings (
     booking_reference VARCHAR(20)  NOT NULL,
     booking_date      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status            ENUM('PENDING','CONFIRMED','CANCELLED') NOT NULL DEFAULT 'PENDING',
+    cancellation_choice ENUM('REFUND_REQUESTED','REBOOK_REQUESTED') NULL DEFAULT NULL,
     PRIMARY KEY (booking_id),
     UNIQUE KEY uq_bookings_reference (booking_reference),
     -- Helper key so booking_seats can prove its trip_id matches the booking's trip_id
@@ -154,17 +169,34 @@ CREATE TABLE payments (
     payment_id     INT UNSIGNED NOT NULL AUTO_INCREMENT,
     booking_id     INT UNSIGNED NOT NULL,
     amount         DECIMAL(10,2) NOT NULL,
-    payment_method ENUM('CASH','E_WALLET','CARD','ONLINE') NOT NULL,
-    payment_status ENUM('PENDING','PAID','FAILED','CANCELLED') NOT NULL DEFAULT 'PENDING',
+    payment_method ENUM('CASH','E_WALLET','CARD','ONLINE','MANUAL_TRANSFER') NOT NULL,
+    online_payment_option ENUM('GCASH','MAYA','MARIBANK','BANK_TRANSFER') NULL DEFAULT NULL,
+    payment_status ENUM('PENDING','PAID','FAILED','REFUND_REQUESTED','REFUNDED','CANCELLED') NOT NULL DEFAULT 'PENDING',
     payment_date   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    paymongo_checkout_id  VARCHAR(100) NULL,
-    paymongo_checkout_url VARCHAR(1000) NULL,
+    transfer_reference VARCHAR(100) NULL,
+    transfer_submitted_at DATETIME NULL,
+    refund_payment_option ENUM('GCASH','MAYA','MARIBANK','BANK_TRANSFER') NULL DEFAULT NULL,
+    refund_account_name VARCHAR(120) NULL,
+    refund_account_number VARCHAR(120) NULL,
+    refund_transfer_reference VARCHAR(100) NULL,
+    refund_processed_at DATETIME NULL,
     PRIMARY KEY (payment_id),
     KEY idx_payments_booking (booking_id),
     KEY idx_payments_date (payment_date),
     CONSTRAINT fk_payments_booking FOREIGN KEY (booking_id) REFERENCES bookings(booking_id)
         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT chk_payments_amount CHECK (amount >= 0)
+) ENGINE=InnoDB;
+
+CREATE TABLE manual_payment_instructions (
+    payment_option ENUM('GCASH','MAYA','MARIBANK','BANK_TRANSFER') NOT NULL,
+    account_name VARCHAR(120) NOT NULL DEFAULT '',
+    account_number VARCHAR(120) NOT NULL DEFAULT '',
+    instructions TEXT NULL,
+    qr_image_path VARCHAR(255) NULL,
+    is_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (payment_option)
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------

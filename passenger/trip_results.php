@@ -43,7 +43,7 @@ $layout    = 'public';
 require __DIR__ . '/../includes/header.php';
 ?>
 <div class="container py-4">
-    <a href="<?= url('index.php') ?>#search" class="small"><i class="bi bi-arrow-left"></i> Change search</a>
+    <a href="<?= url('index.php') ?>" class="small"><i class="bi bi-arrow-left"></i> Browse routes</a>
 
     <?php if ($errors): ?>
         <div class="alert alert-warning mt-3"><?= e($errors[0]) ?></div>
@@ -55,7 +55,7 @@ require __DIR__ . '/../includes/header.php';
             <div class="empty-state">
                 <i class="bi bi-bus-front"></i>
                 <p class="mb-2">No buses leave on this date for this route.</p>
-                <a href="<?= url('index.php') ?>#search" class="btn btn-primary btn-sm">Try another date</a>
+                <a href="<?= url('index.php') ?>" class="btn btn-primary btn-sm">Browse upcoming trips</a>
             </div>
         <?php endif; ?>
 
@@ -63,7 +63,7 @@ require __DIR__ . '/../includes/header.php';
             <article class="trip-row">
                 <div class="trip-bus">
                     <strong><?= e($t['bus_number']) ?></strong>
-                    <span class="text-muted small"><?= e($t['bus_type']) ?></span>
+                    <span class="text-muted small"><?= e($t['bus_type']) ?> · <?= (int)$t['total_seats'] ?> seats</span>
                 </div>
                 <div class="trip-times">
                     <div><span class="time"><?= e(fmt_time($t['departure_time'])) ?></span><span class="small text-muted"><?= e($t['origin']) ?></span></div>

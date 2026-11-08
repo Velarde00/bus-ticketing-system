@@ -8,36 +8,19 @@ require_role('PASSENGER');
 
 $uid = (int)$_SESSION['user_id'];
 
-$counts = $pdo->prepare(
-    "SELECT COUNT(*) AS total,
-            COALESCE(SUM(status = 'PENDING'), 0)   AS pending,
-            COALESCE(SUM(status = 'CONFIRMED'), 0) AS confirmed,
-            COALESCE(SUM(status = 'CANCELLED'), 0) AS cancelled
-     FROM bookings WHERE user_id = :uid"
+$tripStmt = $pdo->query(
+    "SELECT t.trip_id, b.bus_number, b.bus_type, b.total_seats,
+        r.origin, r.destination, t.departure_time, t.arrival_time, t.fare,
+        b.total_seats - (SELECT COUNT(*) FROM booking_seats bs
+                 WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED') AS available_seats
+         FROM trips t JOIN buses b ON b.bus_id = t.bus_id
+         JOIN routes r ON r.route_id = t.route_id
+         WHERE t.status = 'SCHEDULED' AND b.status = 'ACTIVE' AND r.status = 'ACTIVE'
+       AND t.departure_time > NOW()
+       AND (SELECT COUNT(*) FROM booking_seats bs WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED') < b.total_seats
+     ORDER BY t.departure_time LIMIT 30"
 );
-$counts->execute([':uid' => $uid]);
-$stats = $counts->fetch();
-
-$upcomingStmt = $pdo->prepare(
-    "SELECT COUNT(*) FROM bookings bk JOIN trips t ON t.trip_id = bk.trip_id
-     WHERE bk.user_id = :uid AND bk.status <> 'CANCELLED' AND t.departure_time > NOW()"
-);
-$upcomingStmt->execute([':uid' => $uid]);
-$upcoming = (int)$upcomingStmt->fetchColumn();
-
-$recentStmt = $pdo->prepare(
-    "SELECT bk.booking_id, bk.booking_reference, bk.status, r.origin, r.destination, t.departure_time,
-            (SELECT COUNT(*) FROM booking_seats bs WHERE bs.booking_id = bk.booking_id AND bs.seat_status = 'BOOKED') AS seats,
-            (SELECT p.payment_status FROM payments p WHERE p.booking_id = bk.booking_id
-             ORDER BY p.payment_date DESC, p.payment_id DESC LIMIT 1) AS payment_status
-     FROM bookings bk
-     JOIN trips  t ON t.trip_id  = bk.trip_id
-     JOIN routes r ON r.route_id = t.route_id
-     WHERE bk.user_id = :uid
-     ORDER BY bk.booking_date DESC LIMIT 5"
-);
-$recentStmt->execute([':uid' => $uid]);
-$recent = $recentStmt->fetchAll();
+$trips = $tripStmt->fetchAll();
 
 $pageTitle = 'My dashboard';
 $layout    = 'public';
@@ -47,53 +30,35 @@ require __DIR__ . '/../includes/header.php';
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h1 class="h3 mb-0">Hello, <?= e(explode(' ', $_SESSION['user_name'])[0]) ?></h1>
-            <p class="text-muted mb-0">You have <?= $upcoming ?> upcoming booking<?= $upcoming === 1 ? '' : 's' ?>.</p>
+            <p class="text-muted mb-0">Choose from upcoming trips with available seats.</p>
         </div>
-        <a href="<?= url('index.php') ?>#search" class="btn btn-primary"><i class="bi bi-search"></i> Search trips</a>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3"><div class="stat-card"><span class="stat-label">All bookings</span><span class="stat-value"><?= (int)$stats['total'] ?></span></div></div>
-        <div class="col-6 col-lg-3"><div class="stat-card"><span class="stat-label">Pending</span><span class="stat-value"><?= (int)$stats['pending'] ?></span></div></div>
-        <div class="col-6 col-lg-3"><div class="stat-card"><span class="stat-label">Confirmed</span><span class="stat-value"><?= (int)$stats['confirmed'] ?></span></div></div>
-        <div class="col-6 col-lg-3"><div class="stat-card"><span class="stat-label">Cancelled</span><span class="stat-value"><?= (int)$stats['cancelled'] ?></span></div></div>
+        <a href="<?= url('passenger/my_bookings.php') ?>" class="btn btn-outline-dark"><i class="bi bi-ticket-perforated"></i> My bookings</a>
     </div>
 
     <div class="panel">
         <div class="panel-head">
-            <h2 class="h5 mb-0">Latest bookings</h2>
-            <a href="<?= url('passenger/booking_history.php') ?>" class="btn btn-booking-action btn-sm"><i class="bi bi-clock-history"></i> Booking history</a>
+            <h2 class="h5 mb-0">Available trips</h2>
         </div>
-        <?php if (!$recent): ?>
+        <?php if (!$trips): ?>
             <div class="empty-state">
                 <i class="bi bi-ticket-perforated"></i>
-                <p class="mb-2">You have no bookings yet. Search a trip to book your first seat.</p>
-                <a href="<?= url('index.php') ?>#search" class="btn btn-primary btn-sm">Search trips</a>
+                <p class="mb-0">There are no upcoming trips with seats available right now.</p>
             </div>
         <?php else: ?>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><th>Reference</th><th>Route</th><th>Departure</th><th>Seats</th><th>Status</th><th>Payment</th><th></th></tr></thead>
-                    <tbody>
-                    <?php foreach ($recent as $b): ?>
-                        <tr>
-                            <td class="fw-semibold"><?= e($b['booking_reference']) ?></td>
-                            <td><?= e($b['origin']) ?> &rarr; <?= e($b['destination']) ?></td>
-                            <td><?= e(fmt_datetime($b['departure_time'])) ?></td>
-                            <td><?= (int)$b['seats'] ?></td>
-                            <td><?= status_badge($b['status']) ?></td>
-                            <td><?= $b['payment_status'] ? status_badge($b['payment_status']) : '<span class="text-muted">None</span>' ?></td>
-                            <td class="text-end">
-                                <?php if ($b['status'] === 'CONFIRMED'): ?>
-                                    <a class="btn btn-outline-dark btn-sm" href="<?= url('passenger/ticket.php?booking_id=' . (int)$b['booking_id']) ?>">Tickets</a>
-                                <?php else: ?>
-                                    <a class="btn btn-booking-action btn-sm" href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>">Booking details</a>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
+            <div class="p-3">
+                <?php foreach ($trips as $trip): ?>
+                    <article class="trip-row">
+                        <div class="trip-bus"><strong><?= e($trip['bus_number']) ?></strong><span class="text-muted small"><?= e($trip['bus_type']) ?></span></div>
+                        <div class="trip-times">
+                            <div><span class="time"><?= e(fmt_time($trip['departure_time'])) ?></span><span class="small text-muted"><?= e($trip['origin']) ?></span></div>
+                            <i class="bi bi-arrow-right text-muted"></i>
+                            <div><span class="time"><?= e(fmt_time($trip['arrival_time'])) ?></span><span class="small text-muted"><?= e($trip['destination']) ?></span></div>
+                        </div>
+                        <div class="trip-seats"><strong><?= (int)$trip['available_seats'] ?></strong><span class="small text-muted">of <?= (int)$trip['total_seats'] ?> seats left</span></div>
+                        <div class="trip-fare"><strong><?= money($trip['fare']) ?></strong><span class="small text-muted">per seat</span></div>
+                        <div class="trip-action"><a class="btn btn-primary btn-sm" href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$trip['trip_id']) ?>">Select trip</a></div>
+                    </article>
                     <?php endforeach; ?>
-                    </tbody>
-                </table>
             </div>
         <?php endif; ?>
     </div>

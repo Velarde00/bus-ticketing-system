@@ -44,7 +44,7 @@ try {
         throw new RuntimeException('This booking is already cancelled.');
     }
     if ($booking['payment_status'] === 'PAID') {
-        throw new RuntimeException('Paid bookings cannot be cancelled. Refunds are not available.');
+        throw new RuntimeException('Paid bookings cannot be cancelled by passengers. Refund requests are available only when the operator cancels a qualifying trip.');
     }
     if (strtotime($booking['departure_time']) - time() < 2 * 24 * 3600) {
         throw new RuntimeException('Bookings can only be cancelled at least 2 days before departure.');

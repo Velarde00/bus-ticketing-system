@@ -25,7 +25,7 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute([':id' => $id]);
 $seats = $stmt->fetchAll();
-$stmt = $pdo->prepare('SELECT amount, payment_method, payment_status, payment_date FROM payments WHERE booking_id = :id ORDER BY payment_date DESC, payment_id DESC');
+$stmt = $pdo->prepare('SELECT amount, payment_method, online_payment_option, payment_status, payment_date FROM payments WHERE booking_id = :id ORDER BY payment_date DESC, payment_id DESC');
 $stmt->execute([':id' => $id]);
 $payments = $stmt->fetchAll();
 
@@ -58,7 +58,7 @@ require __DIR__ . '/../../includes/header.php';
 <div class="panel">
     <div class="panel-head"><h2 class="h5 mb-0">Payments</h2></div>
     <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead><tbody>
-        <?php foreach ($payments as $payment): ?><tr><td><?= money($payment['amount']) ?></td><td><?= e(payment_method_label($payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td><td><?= e(fmt_datetime($payment['payment_date'])) ?></td></tr><?php endforeach; ?>
+        <?php foreach ($payments as $payment): ?><tr><td><?= money($payment['amount']) ?></td><td><?= e($payment['online_payment_option'] ? online_payment_option_label($payment['online_payment_option']) : payment_method_label($payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td><td><?= e(fmt_datetime($payment['payment_date'])) ?></td></tr><?php endforeach; ?>
         <?php if (!$payments): ?><tr><td colspan="4" class="text-muted text-center py-3">No payment records.</td></tr><?php endif; ?>
     </tbody></table></div>
 </div>

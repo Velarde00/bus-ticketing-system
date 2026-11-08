@@ -96,8 +96,41 @@ function payment_method_label(string $method): string
         'CASH' => 'Cash',
         'E_WALLET' => 'E-wallet',
         'CARD' => 'Card',
-        'ONLINE' => 'Online (PayMongo)',
+        'ONLINE' => 'Legacy online payment',
+        'MANUAL_TRANSFER' => 'Manual transfer',
     ][$method] ?? str_replace('_', '-', ucfirst(strtolower($method)));
+}
+
+function online_payment_option_label(?string $option): string
+{
+    return [
+        'GCASH' => 'GCash',
+        'MAYA' => 'Maya',
+        'MARIBANK' => 'MariBank',
+        'BANK_TRANSFER' => 'Online bank transfer (BPI / UnionBank)',
+    ][$option ?? ''] ?? 'Not specified';
+}
+
+function add_notification(PDO $pdo, int $userId, string $title, string $message, ?string $link = null): void
+{
+    $stmt = $pdo->prepare(
+        'INSERT INTO notifications (user_id, title, message, link) VALUES (:user, :title, :message, :link)'
+    );
+    $stmt->execute([':user' => $userId, ':title' => $title, ':message' => $message, ':link' => $link]);
+}
+
+function notify_active_roles(PDO $pdo, array $roles, string $title, string $message, ?string $link = null): void
+{
+    $roles = array_values(array_intersect($roles, ['ADMIN', 'SUPER_ADMIN', 'PASSENGER']));
+    if (!$roles) {
+        return;
+    }
+    $marks = implode(',', array_fill(0, count($roles), '?'));
+    $stmt = $pdo->prepare("SELECT user_id FROM users WHERE account_status = 'ACTIVE' AND role IN ($marks)");
+    $stmt->execute($roles);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $userId) {
+        add_notification($pdo, (int)$userId, $title, $message, $link);
+    }
 }
 
 /** Keep what the user typed in a form after an error. */
@@ -115,6 +148,7 @@ function status_badge(string $status): string
         'CANCELLED'   => 'secondary',
         'PAID'        => 'success',
         'FAILED'      => 'danger',
+        'REFUND_REQUESTED' => 'warning',
         'REFUNDED'    => 'info',
         'SCHEDULED'   => 'primary',
         'COMPLETED'   => 'success',
@@ -124,5 +158,5 @@ function status_badge(string $status): string
     ];
     $color = $map[$status] ?? 'secondary';
     $text  = in_array($color, ['warning', 'info'], true) ? 'text-dark' : '';
-    return '<span class="badge rounded-pill text-bg-' . $color . ' ' . $text . '">' . e(ucfirst(strtolower($status))) . '</span>';
+    return '<span class="badge rounded-pill text-bg-' . $color . ' ' . $text . '">' . e(ucfirst(strtolower(str_replace('_', ' ', $status)))) . '</span>';
 }

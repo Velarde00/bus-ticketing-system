@@ -12,10 +12,19 @@ $user = current_user();
         </button>
         <div class="collapse navbar-collapse" id="mainNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="<?= url('index.php') ?>#search">Search trips</a></li>
                 <?php if ($user && $user['role'] === 'PASSENGER'): ?>
                     <li class="nav-item"><a class="nav-link" href="<?= url('passenger/dashboard.php') ?>">Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link" href="<?= url('passenger/my_bookings.php') ?>">My bookings</a></li>
+                    <?php
+                    $noticeStmt = $pdo->prepare(
+                        "SELECT COUNT(*) FROM bookings bk JOIN trips t ON t.trip_id = bk.trip_id
+                         WHERE bk.user_id = :uid AND bk.status = 'CANCELLED'
+                           AND t.status = 'CANCELLED' AND bk.cancellation_choice IS NULL"
+                    );
+                    $noticeStmt->execute([(int)$user['id']]);
+                    $noticeCount = (int)$noticeStmt->fetchColumn();
+                    ?>
+                    <li class="nav-item"><a class="nav-link" href="<?= url('passenger/notifications.php') ?>"><i class="bi bi-bell"></i> Notifications<?php if ($noticeCount): ?> <span class="badge text-bg-danger"><?= $noticeCount ?></span><?php endif; ?></a></li>
                     <li class="nav-item"><a class="nav-link" href="<?= url('passenger/profile.php') ?>">Profile</a></li>
                 <?php elseif ($user && in_array($user['role'], ['ADMIN', 'SUPER_ADMIN'], true)): ?>
                     <li class="nav-item"><a class="nav-link" href="<?= url('admin/dashboard.php') ?>">Admin dashboard</a></li>

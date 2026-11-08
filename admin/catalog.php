@@ -67,8 +67,11 @@ $catalogs = [
             'fare' => ['Fare', 'decimal', 10, 2, 0],
             'status' => ['Status', 'select', ['SCHEDULED', 'COMPLETED', 'CANCELLED']],
         ],
-        'list' => "SELECT t.trip_id AS id, CONCAT(r.origin, ' to ', r.destination) AS route_name, b.bus_number, CONCAT(d.first_name, ' ', d.last_name) AS driver_name, t.departure_time, t.arrival_time, t.fare, t.status FROM trips t JOIN routes r ON r.route_id = t.route_id JOIN buses b ON b.bus_id = t.bus_id JOIN drivers d ON d.driver_id = t.driver_id ORDER BY t.departure_time DESC",
-        'columns' => ['Route' => 'route_name', 'Bus' => 'bus_number', 'Driver' => 'driver_name', 'Departure' => 'departure_time', 'Arrival' => 'arrival_time', 'Fare' => 'fare', 'Status' => 'status'],
+        'list' => "SELECT t.trip_id AS id, CONCAT(r.origin, ' to ', r.destination) AS route_name, b.bus_number, CONCAT(d.first_name, ' ', d.last_name) AS driver_name, t.departure_time, t.arrival_time, t.fare, t.status,
+                  (SELECT COUNT(*) FROM booking_seats bs WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED') AS reserved_seats,
+                  b.total_seats - (SELECT COUNT(*) FROM booking_seats bs WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED') AS available_seats
+               FROM trips t JOIN routes r ON r.route_id = t.route_id JOIN buses b ON b.bus_id = t.bus_id JOIN drivers d ON d.driver_id = t.driver_id ORDER BY t.departure_time DESC",
+        'columns' => ['Route' => 'route_name', 'Bus' => 'bus_number', 'Driver' => 'driver_name', 'Departure' => 'departure_time', 'Arrival' => 'arrival_time', 'Fare' => 'fare', 'Reserved seats' => 'reserved_seats', 'Available seats' => 'available_seats', 'Status' => 'status'],
     ],
 ];
 
@@ -166,6 +169,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$errors) {
             try {
                 if ($id) {
+                    $oldTripStatus = null;
+                    if ($type === 'trips') {
+                        $pdo->beginTransaction();
+                        $oldStatusStmt = $pdo->prepare('SELECT status FROM trips WHERE trip_id = :id FOR UPDATE');
+                        $oldStatusStmt->execute([':id' => $id]);
+                        $oldTripStatus = $oldStatusStmt->fetchColumn();
+                    }
                     $sets = [];
                     foreach (array_keys($values) as $name) {
                         $sets[] = $name . ' = :' . $name;
@@ -173,6 +183,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $values['id'] = $id;
                     $stmt = $pdo->prepare("UPDATE {$config['table']} SET " . implode(', ', $sets) . " WHERE {$config['key']} = :id");
                     $stmt->execute($values);
+                    if ($type === 'trips' && $values['status'] === 'CANCELLED' && $oldTripStatus !== 'CANCELLED') {
+                        $pdo->prepare("UPDATE bookings SET status = 'CANCELLED' WHERE trip_id = :id")
+                            ->execute([':id' => $id]);
+                        $pdo->prepare("UPDATE booking_seats SET seat_status = 'CANCELLED' WHERE trip_id = :id")
+                            ->execute([':id' => $id]);
+                        $pdo->prepare(
+                            "UPDATE payments SET payment_status = 'CANCELLED', payment_date = NOW()
+                             WHERE payment_status IN ('PENDING', 'FAILED')
+                               AND booking_id IN (SELECT booking_id FROM bookings WHERE trip_id = :id)"
+                        )->execute([':id' => $id]);
+                    }
+                    if ($type === 'trips') {
+                        $pdo->commit();
+                    }
                 } else {
                     $names = array_keys($values);
                     $stmt = $pdo->prepare(
@@ -184,6 +208,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', $config['title'] . ' saved.');
                 redirect($basePath);
             } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                error_log('admin catalog save: ' . $e->getMessage());
+                $errors[] = 'Could not save this record. Check that unique values are not already in use and trip resources are available.';
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 error_log('admin catalog save: ' . $e->getMessage());
                 $errors[] = 'Could not save this record. Check that unique values are not already in use and trip resources are available.';
             }
@@ -280,6 +313,7 @@ require __DIR__ . '/../includes/header.php';
                                 <td><?= in_array($field, ['status'], true) ? status_badge((string)$row[$field]) : e($row[$field]) ?></td>
                             <?php endforeach; ?>
                             <td class="text-end text-nowrap">
+                                <?php if ($type === 'trips'): ?><a class="btn btn-outline-dark btn-sm" href="<?= url('admin/trips/seats.php?trip_id=' . (int)$row['id']) ?>">Seats</a><?php endif; ?>
                                 <a class="btn btn-outline-dark btn-sm" href="<?= url($basePath . '?id=' . (int)$row['id']) ?>">Edit</a>
                                 <form method="post" class="d-inline" data-confirm="Delete this record? Records in use cannot be deleted.">
                                     <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
