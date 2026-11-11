@@ -31,11 +31,8 @@ if (!$tripId) {
     fail('Invalid trip.', 'index.php');
 }
 
-// Payment method must be one of the allowed values
-$method = $_POST['payment_method'] ?? '';
-if (!in_array($method, ['CASH', 'E_WALLET', 'CARD'], true)) {
-    fail('Choose a payment method.', $back);
-}
+// Online passenger bookings must use E-Wallet — Cash and Card are walk-in only
+$method = 'E_WALLET';
 
 // Clean the seat list: whole numbers only, no duplicates
 $rawSeats = $_POST['seats'] ?? [];
@@ -95,35 +92,107 @@ try {
     }
 
     // Price comes from the database, not from the form
-    $fare  = (float)$trip['fare'];
-    $total = $fare * count($seats);
+    $baseFare = (float)$trip['fare'];
 
-    // 1) booking (temporary reference first, because the real one uses the booking_id)
+    // Process discounts for Student, Senior Citizen, and PWD (20% discount under Philippine Law)
+    $validTypes = ['REGULAR', 'STUDENT', 'SENIOR', 'PWD'];
+    $postTypes  = $_POST['passenger_type'] ?? [];
+    $postIds    = $_POST['id_number'] ?? [];
+
+    $seatDetails   = [];
+    $totalFare     = 0.0;
+    $totalDiscount = 0.0;
+
+    foreach ($seats as $n) {
+        $pType = 'REGULAR';
+        if (is_array($postTypes) && isset($postTypes[$n])) {
+            $val = strtoupper(trim((string)$postTypes[$n]));
+            if (in_array($val, $validTypes, true)) {
+                $pType = $val;
+            }
+        } elseif (is_string($postTypes)) {
+            $val = strtoupper(trim($postTypes));
+            if (in_array($val, $validTypes, true)) {
+                $pType = $val;
+            }
+        }
+
+        $idNum = null;
+        if (is_array($postIds) && isset($postIds[$n])) {
+            $idNum = trim(substr((string)$postIds[$n], 0, 50)) ?: null;
+        } elseif (is_string($postIds)) {
+            $idNum = trim(substr($postIds, 0, 50)) ?: null;
+        }
+
+        $seatDiscount = 0.0;
+        if (in_array($pType, ['STUDENT', 'SENIOR', 'PWD'], true)) {
+            // 20% discount rounded to 2 decimals
+            $seatDiscount = round($baseFare * 0.20, 2);
+        }
+        $seatPrice = max(0.0, $baseFare - $seatDiscount);
+
+        $seatDetails[$n] = [
+            'type'     => $pType,
+            'price'    => $seatPrice,
+            'discount' => $seatDiscount,
+            'id_num'   => $idNum,
+        ];
+
+        $totalFare     += $seatPrice;
+        $totalDiscount += $seatDiscount;
+    }
+
+    // 1) booking (auto-confirmed upon online payment)
     $insert = $pdo->prepare(
-        "INSERT INTO bookings (user_id, trip_id, booking_reference, status)
-         VALUES (:uid, :trip, :ref, 'PENDING')"
+        "INSERT INTO bookings (user_id, trip_id, booking_reference, total_discount, status)
+         VALUES (:uid, :trip, :ref, :discount, 'CONFIRMED')"
     );
-    $insert->execute([':uid' => $uid, ':trip' => $tripId, ':ref' => 'TMP-' . bin2hex(random_bytes(7))]);
+    $insert->execute([
+        ':uid'      => $uid,
+        ':trip'     => $tripId,
+        ':ref'      => 'TMP-' . bin2hex(random_bytes(7)),
+        ':discount' => $totalDiscount,
+    ]);
     $bookingId = (int)$pdo->lastInsertId();
 
     $reference = sprintf('BT-%s-%06d', date('Y'), $bookingId);
     $pdo->prepare('UPDATE bookings SET booking_reference = :ref WHERE booking_id = :id')
         ->execute([':ref' => $reference, ':id' => $bookingId]);
 
-    // 2) one row per seat
+    // 2) one row per seat with passenger type, discounted price, and ID number
     $seatInsert = $pdo->prepare(
-        "INSERT INTO booking_seats (booking_id, trip_id, seat_number, price, seat_status)
-         VALUES (:booking, :trip, :seat, :price, 'BOOKED')"
+        "INSERT INTO booking_seats (booking_id, trip_id, seat_number, passenger_type, price, discount_amount, id_number, seat_status)
+         VALUES (:booking, :trip, :seat, :ptype, :price, :discount, :id_num, 'BOOKED')"
     );
+    $seatIds = [];
     foreach ($seats as $n) {
-        $seatInsert->execute([':booking' => $bookingId, ':trip' => $tripId, ':seat' => $n, ':price' => $fare]);
+        $d = $seatDetails[$n];
+        $seatInsert->execute([
+            ':booking'  => $bookingId,
+            ':trip'     => $tripId,
+            ':seat'     => $n,
+            ':ptype'    => $d['type'],
+            ':price'    => $d['price'],
+            ':discount' => $d['discount'],
+            ':id_num'   => $d['id_num'],
+        ]);
+        $seatIds[] = (int)$pdo->lastInsertId();
     }
 
-    // 3) payment record (PENDING until the administrator records payment)
+    // Automatically issue official tickets for confirmed seats
+    $ticketInsert = $pdo->prepare('INSERT INTO tickets (booking_seat_id, ticket_number) VALUES (:seat, :number)');
+    $ticketUpdate = $pdo->prepare('UPDATE tickets SET ticket_number = :number WHERE ticket_id = :id');
+    foreach ($seatIds as $seatId) {
+        $ticketInsert->execute([':seat' => $seatId, ':number' => 'TMP-' . bin2hex(random_bytes(8))]);
+        $ticketId = (int)$pdo->lastInsertId();
+        $ticketUpdate->execute([':number' => sprintf('TKT-%s-%06d', date('Y'), $ticketId), ':id' => $ticketId]);
+    }
+
+    // 3) payment record (automatically set to PAID for online e-wallet payment)
     $pdo->prepare(
         "INSERT INTO payments (booking_id, amount, payment_method, payment_status)
-         VALUES (:booking, :amount, :method, 'PENDING')"
-    )->execute([':booking' => $bookingId, ':amount' => $total, ':method' => $method]);
+         VALUES (:booking, :amount, :method, 'PAID')"
+    )->execute([':booking' => $bookingId, ':amount' => $totalFare, ':method' => $method]);
 
     $pdo->commit();
 } catch (PDOException $e) {
@@ -143,5 +212,5 @@ try {
     fail($e->getMessage(), $back);
 }
 
-set_flash('success', 'Reservation saved. Your booking reference is ' . $reference . '.');
+set_flash('success', 'Payment successful! Your reservation is confirmed and your tickets are ready.');
 redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);

@@ -43,7 +43,7 @@ try {
         throw new RuntimeException('Bookings cannot be cancelled within 2 hours of departure.');
     }
 
-    $pdo->prepare("UPDATE bookings SET status = 'CANCELLED' WHERE booking_id = :id")
+    $pdo->prepare("UPDATE bookings SET status = 'CANCELLED', cancelled_by = 'USER' WHERE booking_id = :id")
         ->execute([':id' => $bookingId]);
     // Cancelled seats become available again
     $pdo->prepare("UPDATE booking_seats SET seat_status = 'CANCELLED' WHERE booking_id = :id")

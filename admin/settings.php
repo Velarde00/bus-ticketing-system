@@ -38,14 +38,51 @@ $layout = 'admin';
 $activePage = 'settings';
 require __DIR__ . '/../includes/header.php';
 ?>
-<div class="mb-4"><h1 class="h3 mb-0">Account settings</h1><p class="text-muted mb-0">Change the administrator password used to sign in.</p></div>
-<?php if ($errors): ?><div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
-<form method="post" class="panel p-4" style="max-width: 560px;" novalidate>
+<div class="mb-4">
+    <h1 class="h3 fw-bold mb-1 text-dark">Account Settings</h1>
+    <p class="text-muted small mb-0">Update your administrator security credentials and sign-in password.</p>
+</div>
+
+<?php if ($errors): ?>
+    <div class="alert alert-danger py-2 border-0 shadow-sm small mb-4">
+        <ul class="mb-0 ps-3"><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul>
+    </div>
+<?php endif; ?>
+
+<form method="post" class="panel bg-white p-4 rounded-4 border shadow-sm" style="max-width: 540px;" novalidate>
     <?= csrf_field() ?>
-    <div class="mb-3"><label for="current_password" class="form-label">Current password</label><div class="input-group"><input class="form-control" type="password" id="current_password" name="current_password" autocomplete="current-password" required><button class="btn btn-outline-secondary" type="button" data-password-toggle="current_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
-    <div class="mb-3"><label for="new_password" class="form-label">New password</label><div class="input-group"><input class="form-control" type="password" id="new_password" name="new_password" autocomplete="new-password" required><button class="btn btn-outline-secondary" type="button" data-password-toggle="new_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
-    <div class="mb-3"><label for="confirm_password" class="form-label">Confirm new password</label><div class="input-group"><input class="form-control" type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required><button class="btn btn-outline-secondary" type="button" data-password-toggle="confirm_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
-    <p class="form-text">At least 8 characters, including a letter and a number.</p>
-    <button class="btn btn-primary" type="submit">Change password</button>
+    <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+        <span class="stat-icon-wrapper bg-primary-subtle text-primary"><i class="bi bi-shield-lock"></i></span>
+        <h2 class="h5 fw-bold mb-0 text-dark">Change Password</h2>
+    </div>
+
+    <div class="mb-3">
+        <label for="current_password" class="form-label small fw-semibold">Current password</label>
+        <div class="input-group">
+            <input class="form-control" type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+            <button class="btn btn-outline-secondary" type="button" data-password-toggle="current_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="new_password" class="form-label small fw-semibold">New password</label>
+        <div class="input-group">
+            <input class="form-control" type="password" id="new_password" name="new_password" autocomplete="new-password" required>
+            <button class="btn btn-outline-secondary" type="button" data-password-toggle="new_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+        <div class="form-text" style="font-size:0.75rem;">At least 8 characters, with a letter and a number.</div>
+    </div>
+
+    <div class="mb-4">
+        <label for="confirm_password" class="form-label small fw-semibold">Confirm new password</label>
+        <div class="input-group">
+            <input class="form-control" type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+            <button class="btn btn-outline-secondary" type="button" data-password-toggle="confirm_password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+        </div>
+    </div>
+
+    <button class="btn btn-primary rounded-pill shadow-sm px-4" type="submit">
+        <i class="bi bi-check2 me-1"></i> Update Password
+    </button>
 </form>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

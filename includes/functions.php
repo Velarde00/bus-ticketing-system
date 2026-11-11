@@ -96,23 +96,50 @@ function old(string $key, string $default = ''): string
     return e($_POST[$key] ?? $default);
 }
 
-/** Colored status label (Bootstrap badge). */
+/** Colored status label (Modern status badge with icon and dot). */
 function status_badge(string $status): string
 {
     $map = [
-        'PENDING'     => 'warning',
-        'CONFIRMED'   => 'success',
-        'CANCELLED'   => 'secondary',
-        'PAID'        => 'success',
-        'FAILED'      => 'danger',
-        'REFUNDED'    => 'info',
-        'SCHEDULED'   => 'primary',
-        'COMPLETED'   => 'success',
-        'ACTIVE'      => 'success',
-        'INACTIVE'    => 'secondary',
-        'MAINTENANCE' => 'warning',
+        'PENDING'     => ['warning', 'bi-clock-history'],
+        'CONFIRMED'   => ['success', 'bi-check-circle-fill'],
+        'CANCELLED'   => ['secondary', 'bi-x-circle-fill'],
+        'PAID'        => ['success', 'bi-cash-stack'],
+        'FAILED'      => ['danger', 'bi-exclamation-octagon-fill'],
+        'REFUNDED'    => ['info', 'bi-arrow-counterclockwise'],
+        'SCHEDULED'   => ['primary', 'bi-calendar2-check-fill'],
+        'COMPLETED'   => ['success', 'bi-flag-fill'],
+        'ACTIVE'      => ['success', 'bi-check2-circle'],
+        'INACTIVE'    => ['secondary', 'bi-dash-circle'],
+        'MAINTENANCE' => ['warning', 'bi-tools'],
     ];
-    $color = $map[$status] ?? 'secondary';
-    $text  = in_array($color, ['warning', 'info'], true) ? 'text-dark' : '';
-    return '<span class="badge rounded-pill text-bg-' . $color . ' ' . $text . '">' . e(ucfirst(strtolower($status))) . '</span>';
+    $cfg = $map[$status] ?? ['secondary', 'bi-record-fill'];
+    $variant = $cfg[0];
+    $icon = $cfg[1];
+    $label = e(ucfirst(strtolower(str_replace('_', ' ', $status))));
+    return '<span class="status-badge status-' . strtolower($status) . ' status-variant-' . $variant . '"><span class="status-dot"></span><i class="bi ' . $icon . '"></i>' . $label . '</span>';
+}
+
+/** Discount rate for Students, Senior Citizens, and PWDs (20% mandatory discount under Philippine Law). */
+const DISCOUNT_RATE_PERCENT = 20;
+
+function passenger_type_badge(string $type): string
+{
+    $type = strtoupper($type);
+    return match ($type) {
+        'STUDENT' => '<span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill small"><i class="bi bi-mortarboard-fill me-1"></i>Student (20% off)</span>',
+        'SENIOR'  => '<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 rounded-pill small"><i class="bi bi-person-heart me-1"></i>Senior Citizen (20% off)</span>',
+        'PWD'     => '<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill small"><i class="bi bi-universal-access me-1"></i>PWD (20% off)</span>',
+        default   => '<span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">Regular</span>',
+    };
+}
+
+function passenger_type_label(string $type): string
+{
+    $type = strtoupper($type);
+    return match ($type) {
+        'STUDENT' => 'Student (20% Discount)',
+        'SENIOR'  => 'Senior Citizen (20% Discount)',
+        'PWD'     => 'PWD (20% Discount)',
+        default   => 'Regular (Standard Fare)',
+    };
 }

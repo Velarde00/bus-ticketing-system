@@ -60,28 +60,122 @@ $layout = 'admin';
 $activePage = 'reports';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="mb-4"><h1 class="h3 mb-0">Sales reports</h1><p class="text-muted mb-0">Paid sales are calculated from payment records in the selected date range.</p></div>
-<form method="get" class="panel p-3 mb-4 d-flex flex-wrap align-items-end gap-3">
-    <div><label class="form-label" for="from">From</label><input class="form-control" type="date" id="from" name="from" value="<?= e($from) ?>" required></div>
-    <div><label class="form-label" for="to">To</label><input class="form-control" type="date" id="to" name="to" value="<?= e($to) ?>" required></div>
-    <button class="btn btn-primary" type="submit">Run report</button>
-</form>
-<?php if ($errors): ?><div class="alert alert-danger"><?= e(implode(' ', $errors)) ?></div><?php else: ?>
-    <div class="row row-cols-2 row-cols-xl-4 g-3 mb-4">
-        <div class="col"><div class="stat-card stat-sales"><span class="stat-label">Paid sales</span><span class="stat-value"><?= money($totals['sales']) ?></span></div></div>
-        <div class="col"><div class="stat-card"><span class="stat-label">Transactions</span><span class="stat-value"><?= (int)$totals['transactions'] ?></span></div></div>
-        <div class="col"><div class="stat-card stat-confirmed"><span class="stat-label">Paid</span><span class="stat-value"><?= (int)$totals['paid'] ?></span></div></div>
-        <div class="col"><div class="stat-card stat-pending"><span class="stat-label">Pending / refunded</span><span class="stat-value"><?= (int)$totals['pending'] ?> / <?= (int)$totals['refunded'] ?></span></div></div>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1 text-dark">Financial &amp; Sales Reports</h1>
+        <p class="text-muted small mb-0">Paid revenue metrics calculated from confirmed payment records in the selected date range.</p>
     </div>
+</div>
+
+<form method="get" class="panel bg-white p-3 px-4 rounded-4 border shadow-sm mb-4 d-flex flex-wrap align-items-end gap-3">
+    <div>
+        <label class="form-label small fw-semibold mb-1" for="from">Start Date</label>
+        <input class="form-control form-control-sm" type="date" id="from" name="from" value="<?= e($from) ?>" required>
+    </div>
+    <div>
+        <label class="form-label small fw-semibold mb-1" for="to">End Date</label>
+        <input class="form-control form-control-sm" type="date" id="to" name="to" value="<?= e($to) ?>" required>
+    </div>
+    <button class="btn btn-primary btn-sm rounded-pill shadow-sm px-4" type="submit">
+        <i class="bi bi-funnel me-1"></i> Filter Date Range
+    </button>
+</form>
+
+<?php if ($errors): ?>
+    <div class="alert alert-danger py-2 border-0 shadow-sm small mb-4"><?= e(implode(' ', $errors)) ?></div>
+<?php else: ?>
+    <div class="row row-cols-2 row-cols-xl-4 g-3 mb-4">
+        <div class="col">
+            <div class="stat-card-modern p-3 rounded-4 bg-dark text-white border-0 shadow-sm h-100 stat-sales-banner">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="stat-card-label text-white-50 small fw-semibold">Paid Sales</span>
+                    <span class="stat-icon-wrapper bg-white bg-opacity-10 text-warning"><i class="bi bi-cash-stack"></i></span>
+                </div>
+                <div class="stat-card-value h3 fw-bold text-signal mb-0"><?= money($totals['sales']) ?></div>
+                <div class="stat-card-sub text-white-50 mt-1 small">Total revenue generated</div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="stat-card-modern p-3 rounded-4 bg-white border shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="stat-card-label text-muted small fw-semibold">Transactions</span>
+                    <span class="stat-icon-wrapper bg-light text-dark"><i class="bi bi-receipt"></i></span>
+                </div>
+                <div class="stat-card-value h3 fw-bold text-dark mb-0"><?= (int)$totals['transactions'] ?></div>
+                <div class="stat-card-sub text-muted mt-1 small">Total records</div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="stat-card-modern p-3 rounded-4 bg-white border shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="stat-card-label text-muted small fw-semibold">Paid Count</span>
+                    <span class="stat-icon-wrapper bg-success-subtle text-success"><i class="bi bi-check-circle-fill"></i></span>
+                </div>
+                <div class="stat-card-value h3 fw-bold text-success mb-0"><?= (int)$totals['paid'] ?></div>
+                <div class="stat-card-sub text-muted mt-1 small">Successful payments</div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="stat-card-modern p-3 rounded-4 bg-white border shadow-sm h-100">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="stat-card-label text-muted small fw-semibold">Pending / Refunded</span>
+                    <span class="stat-icon-wrapper bg-warning-subtle text-warning"><i class="bi bi-hourglass-split"></i></span>
+                </div>
+                <div class="stat-card-value h3 fw-bold text-warning mb-0"><?= (int)$totals['pending'] ?> <span class="fs-6 text-muted">/ <?= (int)$totals['refunded'] ?></span></div>
+                <div class="stat-card-sub text-muted mt-1 small">Awaiting or returned</div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
-        <div class="col-lg-7"><div class="panel"><div class="panel-head"><h2 class="h5 mb-0">Sales by day</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Date</th><th>Transactions</th><th>Paid sales</th></tr></thead><tbody>
-            <?php foreach ($byDay as $row): ?><tr><td><?= e(fmt_date($row['day'])) ?></td><td><?= (int)$row['transactions'] ?></td><td><?= money($row['sales']) ?></td></tr><?php endforeach; ?>
-            <?php if (!$byDay): ?><tr><td colspan="3" class="text-center text-muted py-4">No payments in this period.</td></tr><?php endif; ?>
-        </tbody></table></div></div></div>
-        <div class="col-lg-5"><div class="panel"><div class="panel-head"><h2 class="h5 mb-0">Sales by method</h2></div><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Method</th><th>Transactions</th><th>Paid sales</th></tr></thead><tbody>
-            <?php foreach ($byMethod as $row): ?><tr><td><?= e(str_replace('_', '-', $row['payment_method'])) ?></td><td><?= (int)$row['transactions'] ?></td><td><?= money($row['sales']) ?></td></tr><?php endforeach; ?>
-            <?php if (!$byMethod): ?><tr><td colspan="3" class="text-center text-muted py-4">No payments in this period.</td></tr><?php endif; ?>
-        </tbody></table></div></div></div>
+        <div class="col-lg-7">
+            <div class="panel bg-white rounded-4 border shadow-sm overflow-hidden">
+                <div class="panel-head p-3 px-4 border-bottom bg-light bg-opacity-50">
+                    <h2 class="h6 fw-bold mb-0 text-uppercase letter-spacing-1 text-muted">Daily Sales Summary</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 custom-modern-table">
+                        <thead><tr><th class="ps-4">Date</th><th>Transactions</th><th class="pe-4 text-end">Paid Sales</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($byDay as $row): ?>
+                                <tr>
+                                    <td class="ps-4 fw-semibold text-dark"><?= e(fmt_date($row['day'])) ?></td>
+                                    <td><span class="badge bg-light text-dark border px-2 py-1 rounded-pill"><?= (int)$row['transactions'] ?></span></td>
+                                    <td class="pe-4 text-end fw-bold text-primary"><?= money($row['sales']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <?php if (!$byDay): ?><tr><td colspan="3" class="text-center text-muted py-5">No payments found in this date range.</td></tr><?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="panel bg-white rounded-4 border shadow-sm overflow-hidden">
+                <div class="panel-head p-3 px-4 border-bottom bg-light bg-opacity-50">
+                    <h2 class="h6 fw-bold mb-0 text-uppercase letter-spacing-1 text-muted">Sales by Payment Channel</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 custom-modern-table">
+                        <thead><tr><th class="ps-4">Channel</th><th>Transactions</th><th class="pe-4 text-end">Volume</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($byMethod as $row): ?>
+                                <tr>
+                                    <td class="ps-4 fw-semibold text-dark"><i class="bi bi-wallet2 me-1 text-primary"></i> <?= e(str_replace('_', ' ', $row['payment_method'])) ?></td>
+                                    <td><span class="badge bg-light text-dark border px-2 py-1 rounded-pill"><?= (int)$row['transactions'] ?></span></td>
+                                    <td class="pe-4 text-end fw-bold text-primary"><?= money($row['sales']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <?php if (!$byMethod): ?><tr><td colspan="3" class="text-center text-muted py-5">No payment methods recorded.</td></tr><?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 <?php endif; ?>
 <?php require __DIR__ . '/../../includes/footer.php'; ?>

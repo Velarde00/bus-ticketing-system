@@ -34,32 +34,108 @@ $layout = 'admin';
 $activePage = 'reservations';
 require __DIR__ . '/../../includes/header.php';
 ?>
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div><h1 class="h3 mb-0"><?= e($booking['booking_reference']) ?></h1><p class="text-muted mb-0">Booked <?= e(fmt_datetime($booking['booking_date'])) ?></p></div>
-    <?= status_badge($booking['status']) ?>
+<div class="mb-3">
+    <a href="<?= url('admin/reservations/index.php') ?>" class="text-muted text-decoration-none small d-inline-flex align-items-center gap-1 mb-2">
+        <i class="bi bi-arrow-left"></i> Back to all reservations
+    </a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h1 class="h3 fw-bold mb-1 font-monospace text-dark"><?= e($booking['booking_reference']) ?></h1>
+            <p class="text-muted small mb-0"><i class="bi bi-clock me-1"></i> Booked <?= e(fmt_datetime($booking['booking_date'])) ?></p>
+        </div>
+        <div>
+            <?= status_badge($booking['status']) ?>
+        </div>
+    </div>
 </div>
-<a href="<?= url('admin/reservations/index.php') ?>" class="small"><i class="bi bi-arrow-left"></i> All reservations</a>
-<div class="panel mt-3 mb-3">
-    <div class="panel-head"><h2 class="h5 mb-0">Passenger and trip</h2></div>
-    <dl class="detail-grid p-3 mb-0">
-        <div><dt>Passenger</dt><dd><?= e($booking['passenger']) ?></dd></div><div><dt>Email</dt><dd><?= e($booking['email']) ?></dd></div>
-        <div><dt>Mobile</dt><dd><?= e($booking['phone_number']) ?></dd></div><div><dt>Route</dt><dd><?= e($booking['route']) ?></dd></div>
-        <div><dt>Departure</dt><dd><?= e(fmt_datetime($booking['departure_time'])) ?></dd></div><div><dt>Arrival</dt><dd><?= e(fmt_datetime($booking['arrival_time'])) ?></dd></div>
-        <div><dt>Bus</dt><dd><?= e($booking['bus_number']) ?></dd></div><div><dt>Driver</dt><dd><?= e($booking['driver_name']) ?></dd></div>
-    </dl>
+
+<div class="panel bg-white rounded-4 border shadow-sm mb-4 overflow-hidden">
+    <div class="panel-head p-3 px-4 border-bottom bg-light bg-opacity-50">
+        <h2 class="h5 fw-bold mb-0 text-dark"><i class="bi bi-person-badge me-2 text-primary"></i>Passenger &amp; Trip Details</h2>
+    </div>
+    <div class="p-4">
+        <div class="row g-4">
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Passenger</span>
+                <div class="fw-bold text-dark mb-0"><?= e($booking['passenger']) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Email Address</span>
+                <div class="fw-semibold text-dark mb-0"><?= e($booking['email']) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Mobile Contact</span>
+                <div class="fw-semibold text-dark mb-0"><?= e($booking['phone_number']) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Route</span>
+                <div class="fw-bold text-primary mb-0"><?= e($booking['route']) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Departure</span>
+                <div class="fw-semibold text-dark mb-0"><?= e(fmt_datetime($booking['departure_time'])) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Expected Arrival</span>
+                <div class="fw-semibold text-dark mb-0"><?= e(fmt_datetime($booking['arrival_time'])) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Assigned Coach</span>
+                <div class="fw-semibold text-dark mb-0">Bus <?= e($booking['bus_number']) ?></div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small d-block mb-1">Driver</span>
+                <div class="fw-semibold text-dark mb-0"><?= e($booking['driver_name']) ?></div>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="panel mb-3">
-    <div class="panel-head"><h2 class="h5 mb-0">Seats and tickets</h2></div>
-    <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Seat</th><th>Price</th><th>Status</th><th>Ticket</th></tr></thead><tbody>
-        <?php foreach ($seats as $seat): ?><tr><td><?= (int)$seat['seat_number'] ?></td><td><?= money($seat['price']) ?></td><td><?= status_badge($seat['seat_status'] === 'BOOKED' ? 'ACTIVE' : 'CANCELLED') ?></td><td><?= e($seat['ticket_number'] ?: '—') ?></td></tr><?php endforeach; ?>
-        <?php if (!$seats): ?><tr><td colspan="4" class="text-muted text-center py-3">No seats.</td></tr><?php endif; ?>
-    </tbody></table></div>
+
+<div class="panel bg-white rounded-4 border shadow-sm mb-4 overflow-hidden">
+    <div class="panel-head p-3 px-4 border-bottom bg-light bg-opacity-50">
+        <h2 class="h5 fw-bold mb-0 text-dark"><i class="bi bi-ticket-perforated me-2 text-primary"></i>Assigned Seats &amp; Tickets</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 custom-modern-table">
+            <thead><tr><th class="ps-4">Seat #</th><th>Fare</th><th>Seat Status</th><th class="pe-4">Issued Ticket Number</th></tr></thead>
+            <tbody>
+                <?php foreach ($seats as $seat): ?>
+                    <tr>
+                        <td class="ps-4">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold">
+                                Seat <?= (int)$seat['seat_number'] ?>
+                            </span>
+                        </td>
+                        <td class="fw-semibold"><?= money($seat['price']) ?></td>
+                        <td><?= status_badge($seat['seat_status'] === 'BOOKED' ? 'ACTIVE' : 'CANCELLED') ?></td>
+                        <td class="pe-4 font-monospace"><?= e($seat['ticket_number'] ?: '—') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$seats): ?><tr><td colspan="4" class="text-muted text-center py-4">No seats found for this reservation.</td></tr><?php endif; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
-<div class="panel">
-    <div class="panel-head"><h2 class="h5 mb-0">Payments</h2></div>
-    <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead><tbody>
-        <?php foreach ($payments as $payment): ?><tr><td><?= money($payment['amount']) ?></td><td><?= e(str_replace('_', '-', $payment['payment_method'])) ?></td><td><?= status_badge($payment['payment_status']) ?></td><td><?= e(fmt_datetime($payment['payment_date'])) ?></td></tr><?php endforeach; ?>
-        <?php if (!$payments): ?><tr><td colspan="4" class="text-muted text-center py-3">No payment records.</td></tr><?php endif; ?>
-    </tbody></table></div>
+
+<div class="panel bg-white rounded-4 border shadow-sm mb-4 overflow-hidden">
+    <div class="panel-head p-3 px-4 border-bottom bg-light bg-opacity-50">
+        <h2 class="h5 fw-bold mb-0 text-dark"><i class="bi bi-cash-coin me-2 text-primary"></i>Payment Records</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 custom-modern-table">
+            <thead><tr><th class="ps-4">Amount</th><th>Method</th><th>Status</th><th class="pe-4">Payment Timestamp</th></tr></thead>
+            <tbody>
+                <?php foreach ($payments as $payment): ?>
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark fs-6"><?= money($payment['amount']) ?></td>
+                        <td><span class="badge bg-light text-dark border px-2 py-1 rounded-pill"><?= e(str_replace('_', ' ', $payment['payment_method'])) ?></span></td>
+                        <td><?= status_badge($payment['payment_status']) ?></td>
+                        <td class="pe-4 small text-muted"><?= e(fmt_datetime($payment['payment_date'])) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$payments): ?><tr><td colspan="4" class="text-muted text-center py-4">No payment records attached.</td></tr><?php endif; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
 <?php require __DIR__ . '/../../includes/footer.php'; ?>
