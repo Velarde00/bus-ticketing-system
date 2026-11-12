@@ -142,10 +142,10 @@ try {
         $totalDiscount += $seatDiscount;
     }
 
-    // 1) booking (auto-confirmed upon online payment)
+    // 1) booking (starts as PENDING awaiting online OTP payment authorization)
     $insert = $pdo->prepare(
         "INSERT INTO bookings (user_id, trip_id, booking_reference, total_discount, status)
-         VALUES (:uid, :trip, :ref, :discount, 'CONFIRMED')"
+         VALUES (:uid, :trip, :ref, :discount, 'PENDING')"
     );
     $insert->execute([
         ':uid'      => $uid,
@@ -164,7 +164,6 @@ try {
         "INSERT INTO booking_seats (booking_id, trip_id, seat_number, passenger_type, price, discount_amount, id_number, seat_status)
          VALUES (:booking, :trip, :seat, :ptype, :price, :discount, :id_num, 'BOOKED')"
     );
-    $seatIds = [];
     foreach ($seats as $n) {
         $d = $seatDetails[$n];
         $seatInsert->execute([
@@ -176,23 +175,23 @@ try {
             ':discount' => $d['discount'],
             ':id_num'   => $d['id_num'],
         ]);
-        $seatIds[] = (int)$pdo->lastInsertId();
     }
 
-    // Automatically issue official tickets for confirmed seats
-    $ticketInsert = $pdo->prepare('INSERT INTO tickets (booking_seat_id, ticket_number) VALUES (:seat, :number)');
-    $ticketUpdate = $pdo->prepare('UPDATE tickets SET ticket_number = :number WHERE ticket_id = :id');
-    foreach ($seatIds as $seatId) {
-        $ticketInsert->execute([':seat' => $seatId, ':number' => 'TMP-' . bin2hex(random_bytes(8))]);
-        $ticketId = (int)$pdo->lastInsertId();
-        $ticketUpdate->execute([':number' => sprintf('TKT-%s-%06d', date('Y'), $ticketId), ':id' => $ticketId]);
+    $walletChoice = strtoupper(trim((string)($_POST['online_wallet'] ?? 'GCASH')));
+    if (!in_array($walletChoice, ['GCASH', 'MAYA'], true)) {
+        $walletChoice = 'GCASH';
     }
 
-    // 3) payment record (automatically set to PAID for online e-wallet payment)
+    // 3) payment record (starts as PENDING for OTP verification)
     $pdo->prepare(
-        "INSERT INTO payments (booking_id, amount, payment_method, payment_status)
-         VALUES (:booking, :amount, :method, 'PAID')"
-    )->execute([':booking' => $bookingId, ':amount' => $totalFare, ':method' => $method]);
+        "INSERT INTO payments (booking_id, amount, payment_method, online_payment_option, payment_status)
+         VALUES (:booking, :amount, :method, :opt, 'PENDING')"
+    )->execute([
+        ':booking' => $bookingId,
+        ':amount'  => $totalFare,
+        ':method'  => $method,
+        ':opt'     => $walletChoice
+    ]);
 
     $pdo->commit();
 } catch (PDOException $e) {
@@ -212,5 +211,26 @@ try {
     fail($e->getMessage(), $back);
 }
 
-set_flash('success', 'Payment successful! Your reservation is confirmed and your tickets are ready.');
-redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);
+// Fetch user email and phone to send Payment OTP
+$uStmt = $pdo->prepare('SELECT email, phone_number FROM users WHERE user_id = :id');
+$uStmt->execute([':id' => $uid]);
+$userData = $uStmt->fetch();
+
+$userEmail = $userData['email'] ?? '';
+$userPhone = $userData['phone_number'] ?? '';
+
+$otpData = create_and_dispatch_otp($pdo, $userEmail, $userPhone, 'PAYMENT', $uid, $bookingId);
+
+$_SESSION['pending_payment_otp'] = [
+    'booking_id'   => $bookingId,
+    'wallet'       => $walletChoice,
+    'amount'       => $totalFare,
+    'email'        => $userEmail,
+    'phone'        => $userPhone,
+    'masked_email' => $otpData['masked_email'],
+    'masked_phone' => $otpData['masked_phone'],
+    'code'         => $otpData['code'],
+    'expires_at'   => $otpData['expires_at'],
+];
+
+redirect('passenger/verify_payment.php?booking_id=' . $bookingId);

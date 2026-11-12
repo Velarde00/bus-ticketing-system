@@ -286,30 +286,42 @@ require __DIR__ . '/../includes/header.php';
                     <div class="mb-4">
                         <label class="form-label fw-semibold small mb-2">Payment Method</label>
                         <div class="alert alert-info border-0 py-2 px-3 small d-flex align-items-center gap-2 mb-2 rounded-3">
-                            <i class="bi bi-info-circle-fill flex-shrink-0"></i>
-                            <span>Online bookings require <strong>e-wallet payment</strong> (GCash / Maya). Walk-in passengers may pay cash or card at the terminal counter.</span>
+                            <i class="bi bi-shield-lock-fill flex-shrink-0 text-info"></i>
+                            <span>Online bookings require secure <strong>E-Wallet verification</strong> (GCash / Maya). An OTP authorization code will be dispatched to your email &amp; mobile number to verify payment.</span>
                         </div>
                         <input type="hidden" name="payment_method" value="E_WALLET">
-                        <label class="payment-method-card d-flex align-items-center p-3 rounded-3 border border-primary bg-primary-subtle">
-                            <div class="d-flex align-items-center gap-2 w-100">
-                                <span class="payment-icon bg-primary text-white"><i class="bi bi-phone-fill"></i></span>
-                                <div class="flex-grow-1">
-                                    <div class="fw-semibold small text-primary">E-Wallet (GCash / Maya)</div>
-                                    <div class="text-muted" style="font-size: 0.75rem;">Your booking is reserved immediately. Present your reference number and e-wallet receipt at the terminal.</div>
-                                </div>
-                                <i class="bi bi-check-circle-fill text-primary fs-5"></i>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="online_wallet" id="walletGcash" value="GCASH" checked>
+                                <label class="btn btn-outline-primary w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2" for="walletGcash">
+                                    <span class="badge bg-primary text-white p-2 rounded-circle"><i class="bi bi-wallet2"></i></span>
+                                    <div>
+                                        <div class="fw-bold small">GCash</div>
+                                        <div class="text-muted" style="font-size:0.7rem;">Direct verification</div>
+                                    </div>
+                                </label>
                             </div>
-                        </label>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="online_wallet" id="walletMaya" value="MAYA">
+                                <label class="btn btn-outline-primary w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2" for="walletMaya">
+                                    <span class="badge bg-success text-white p-2 rounded-circle"><i class="bi bi-credit-card-2-front"></i></span>
+                                    <div>
+                                        <div class="fw-bold small">Maya</div>
+                                        <div class="text-muted" style="font-size:0.7rem;">Direct verification</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Confirm button -->
                     <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2" id="confirmBtn" disabled>
-                        <i class="bi bi-check-circle-fill"></i>
+                        <i class="bi bi-shield-check"></i>
                         <span id="confirmBtnText">Select Seats to Continue</span>
                     </button>
 
                     <p class="small text-muted text-center mt-3 mb-0" style="font-size: 0.8rem;">
-                        <i class="bi bi-info-circle me-1"></i> Your seats are reserved under your name upon submission. Tickets are issued after payment verification.
+                        <i class="bi bi-lock-fill me-1 text-success"></i> 256-bit encrypted checkout with 2-Factor OTP authorization.
                     </p>
                 </div>
             </div>

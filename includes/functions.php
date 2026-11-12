@@ -143,3 +143,79 @@ function passenger_type_label(string $type): string
         default   => 'Regular (Standard Fare)',
     };
 }
+
+/**
+ * Generates and stores a 6-digit OTP for Email & Mobile Number delivery.
+ * Supports mail() sending and local inbox delivery.
+ */
+function create_and_dispatch_otp(PDO $pdo, string $email, string $phone, string $purpose, ?int $userId = null, ?int $referenceId = null): array
+{
+    // Generate secure 6-digit OTP
+    $code = sprintf('%06d', random_int(100000, 999999));
+    $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes validity
+
+    // Invalidate prior unused OTPs for this email and purpose
+    $inv = $pdo->prepare('UPDATE user_otps SET is_used = 1 WHERE email = :email AND purpose = :purpose AND is_used = 0');
+    $inv->execute([':email' => $email, ':purpose' => $purpose]);
+
+    // Save newly generated OTP
+    $ins = $pdo->prepare(
+        'INSERT INTO user_otps (user_id, email, otp_code, purpose, reference_id, expires_at, is_used)
+         VALUES (:uid, :email, :code, :purpose, :ref, :expires, 0)'
+    );
+    $ins->execute([
+        ':uid'     => $userId,
+        ':email'   => $email,
+        ':code'    => $code,
+        ':purpose' => $purpose,
+        ':ref'     => $referenceId,
+        ':expires' => $expiresAt
+    ]);
+
+    // Dispatch via email
+    $subject = $purpose === 'LOGIN' ? 'Your BusTicket Sign-In OTP' : 'BusTicket Payment Verification OTP';
+    $message = "Hello,\r\n\r\nYour One-Time Password (OTP) is: $code\r\n\r\nThis code is valid for 10 minutes.\r\nIf you did not request this code, please ignore this email.\r\n\r\nThank you,\r\nBusTicket Reservation System";
+    $headers = "From: noreply@busticket.ph\r\nReply-To: support@busticket.ph\r\nX-Mailer: PHP/" . phpversion();
+
+    @mail($email, $subject, $message, $headers);
+
+    // Mask phone and email for display
+    $maskedEmail = preg_replace('/(?<=.{2}).(?=.*@)/u', '*', $email);
+    $maskedPhone = strlen($phone) >= 7 ? substr($phone, 0, 4) . '***' . substr($phone, -3) : $phone;
+
+    return [
+        'code'         => $code,
+        'expires_at'   => $expiresAt,
+        'masked_email' => $maskedEmail,
+        'masked_phone' => $maskedPhone,
+    ];
+}
+
+/**
+ * Validates an OTP entered by the user.
+ */
+function verify_otp_code(PDO $pdo, string $email, string $code, string $purpose): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT otp_id, expires_at FROM user_otps
+         WHERE email = :email AND otp_code = :code AND purpose = :purpose AND is_used = 0
+         ORDER BY otp_id DESC LIMIT 1'
+    );
+    $stmt->execute([':email' => $email, ':code' => trim($code), ':purpose' => $purpose]);
+    $row = $stmt->fetch();
+
+    if (!$row) {
+        return false;
+    }
+
+    if (strtotime($row['expires_at']) < time()) {
+        return false;
+    }
+
+    // Mark as used
+    $pdo->prepare('UPDATE user_otps SET is_used = 1 WHERE otp_id = :id')
+        ->execute([':id' => $row['otp_id']]);
+
+    return true;
+}
+

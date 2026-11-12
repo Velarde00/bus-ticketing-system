@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Enter your email and password.';
         } else {
             $stmt = $pdo->prepare(
-                'SELECT user_id, first_name, last_name, password_hash, role, account_status
+                'SELECT user_id, first_name, last_name, email, phone_number, password_hash, role, account_status
                  FROM users WHERE email = :email LIMIT 1'
             );
             $stmt->execute([':email' => $email]);
@@ -34,11 +34,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($user['account_status'] !== 'ACTIVE') {
                 $errors[] = 'This account is inactive. Contact the administrator.';
             } else {
-                session_regenerate_id(true);               // stops session fixation
-                $_SESSION['user_id']   = (int)$user['user_id'];
-                $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
-                $_SESSION['role']      = $user['role'];
-                redirect(in_array($user['role'], ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php');
+                // Initialize OTP verification process
+                $otpInfo = create_and_dispatch_otp($pdo, $user['email'], $user['phone_number'], 'LOGIN', (int)$user['user_id']);
+
+                $_SESSION['pending_otp'] = [
+                    'user_id'      => (int)$user['user_id'],
+                    'user_name'    => $user['first_name'] . ' ' . $user['last_name'],
+                    'role'         => $user['role'],
+                    'email'        => $user['email'],
+                    'phone'        => $user['phone_number'],
+                    'masked_email' => $otpInfo['masked_email'],
+                    'masked_phone' => $otpInfo['masked_phone'],
+                    'code'         => $otpInfo['code'], // available for demo preview / quick autofill
+                    'expires_at'   => $otpInfo['expires_at'],
+                ];
+
+                redirect('auth/verify_otp.php');
             }
         }
     }
