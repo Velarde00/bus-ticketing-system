@@ -64,26 +64,26 @@ require __DIR__ . '/../includes/header.php';
                         <span><?= e($trip['destination']) ?></span>
                     </h1>
                     <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                        <span class="badge bg-white bg-opacity-15 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill fw-semibold">
+                        <span class="badge hero-pill-badge px-3 py-2 rounded-pill fw-semibold">
                             <i class="bi bi-calendar-event me-1"></i> <?= e(fmt_date($trip['departure_time'])) ?>
                         </span>
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-semibold shadow-xs">
+                        <span class="badge hero-pill-badge-warning px-3 py-2 rounded-pill shadow-sm">
                             <i class="bi bi-clock-fill me-1"></i> <?= e(fmt_time($trip['departure_time'])) ?>
                         </span>
-                        <span class="badge bg-white bg-opacity-20 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill small">
+                        <span class="badge hero-pill-badge px-3 py-2 rounded-pill small">
                             <i class="bi bi-bus-front me-1 text-warning"></i> Bus <?= e($trip['bus_number']) ?> &bull; <?= e($trip['bus_type']) ?>
                         </span>
-                        <span class="badge bg-white bg-opacity-15 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill small">
+                        <span class="badge hero-pill-badge px-3 py-2 rounded-pill small">
                             <i class="bi bi-person-badge me-1 text-warning"></i> Driver: <?= e($trip['driver_name']) ?>
                         </span>
                     </div>
                 </div>
                 <div class="text-start text-md-end">
-                    <span class="badge bg-white text-dark px-3 py-2 rounded-pill fs-6 d-inline-block shadow-sm">
-                        <?= money($trip['fare']) ?> <span class="fw-normal small text-muted">/ regular seat</span>
+                    <span class="badge hero-price-badge px-3 py-2 rounded-pill fs-6 d-inline-block">
+                        <span class="text-dark fw-bold"><?= money($trip['fare']) ?></span> <span class="fw-normal small text-muted">/ regular seat</span>
                     </span>
                     <div class="mt-1">
-                        <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small shadow-xs" title="Mandated 20% discount for Students, Senior Citizens, and PWDs">
+                        <span class="badge hero-pill-badge-warning px-2 py-1 rounded-pill small" title="Mandated 20% discount for Students, Senior Citizens, and PWDs">
                             <i class="bi bi-tag-fill me-1"></i> Discounted: <?= money($trip['fare'] * 0.80) ?> (20% off)
                         </span>
                     </div>

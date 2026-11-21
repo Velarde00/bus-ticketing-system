@@ -642,10 +642,49 @@ h1, h2, h3, h4, h5, h6,
     transform: scale(1.05);
 }
 
+/* Trip Hero Banner & Badges */
 .trip-selection-hero {
     background-position: center right !important;
     background-size: cover !important;
     min-height: 150px;
+}
+
+.hero-pill-badge {
+    background: rgba(15, 23, 42, 0.75) !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    display: inline-flex;
+    align-items: center;
+}
+
+.hero-pill-badge * {
+    color: #FFFFFF !important;
+}
+
+.hero-pill-badge .text-warning {
+    color: #F59E0B !important;
+}
+
+.hero-pill-badge-warning {
+    background: #F59E0B !important;
+    color: #0F172A !important;
+    border: 1px solid #D97706 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.hero-pill-badge-warning * {
+    color: #0F172A !important;
+}
+
+.hero-price-badge {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .hover-text-white:hover {
