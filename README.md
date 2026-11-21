@@ -6,10 +6,8 @@ Bus ticketing and reservation system built with PHP and MySQL for XAMPP.
 
 1. Start Apache and MySQL in XAMPP.
 2. Import `database/bus_ticketing_db.sql` in phpMyAdmin to create the database and tables.
-3. Open the project in your browser and sign in as the initial super administrator:
-   - Email: `admin@busticket.ph`
-   - Password: `Admin@123`
-4. Change the initial administrator password before using the system with real passenger data.
+3. Open the project in your browser to sign in to the administrator portal.
+4. Set up an administrator password before using the system.
 5. Add buses, drivers, routes, and trips from the Admin menu. Passengers can then register and book trips.
 
 For an existing installation, run `database/migrate_super_admin.sql`, `database/migrate_bus_type_options.sql`, `database/migrate_cancelled_payment_status.sql`, `database/migrate_online_only_trip_cancellations.sql`, `database/migrate_online_payment_options.sql`, `database/migrate_manual_transfers.sql`, `database/migrate_payment_qr_images.sql`, `database/migrate_online_refunds.sql`, and `database/migrate_notifications.sql` in phpMyAdmin, in that order. These update the administrator role, bus type field, payment/cancellation, QR, and notification schema without dropping operational data.
@@ -17,10 +15,6 @@ For an existing installation, run `database/migrate_super_admin.sql`, `database/
 ### Manual transfers
 
 Passengers choose GCash, Maya, MariBank, or online bank transfer during seat reservation. Configure the receiving account details and upload the matching QR from each payment app under Admin > Account settings. Passengers can scan the QR instead of typing the account number, then submit the transaction reference; an administrator verifies the incoming payment and confirms the reservation to issue tickets. Payment status is not automatically verified without an online payment provider. Administrators can inspect trip seat maps and available-seat counts. Passengers can cancel unpaid bookings at least 2 days before departure. If an operator cancels a trip, affected passengers can request a refund only for paid reservations made at least 2 days before departure, provide their online refund destination, or choose to rebook another available trip. The administrator sends the refund using online banking or a wallet outside the application, then records the transfer reference in Manage Refunds. The app tracks the refund but does not initiate outgoing transfers because no payout provider is connected. Each issued ticket includes a QR code with its ticket number, booking reference, and payment method.
-
-The database import creates no sample buses, drivers, routes, trips, passengers, reservations, payments, or tickets. It does create one administrator account so the admin pages are accessible.
-
-**Warning:** `database/bus_ticketing_db.sql` begins by dropping and recreating `bus_ticketing_db`. Importing it again deletes all data currently in that database.
 
 ## Admin workflows
 

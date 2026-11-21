@@ -68,10 +68,9 @@ $catalogs = [
             'status' => ['Status', 'select', ['SCHEDULED', 'COMPLETED', 'CANCELLED']],
         ],
         'list' => "SELECT t.trip_id AS id, CONCAT(r.origin, ' to ', r.destination) AS route_name, b.bus_number, CONCAT(d.first_name, ' ', d.last_name) AS driver_name, t.departure_time, t.arrival_time, t.fare, t.status,
-                  (SELECT COUNT(*) FROM booking_seats bs WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED') AS reserved_seats,
-                  b.total_seats - (SELECT COUNT(*) FROM booking_seats bs WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED') AS available_seats
-               FROM trips t JOIN routes r ON r.route_id = t.route_id JOIN buses b ON b.bus_id = t.bus_id JOIN drivers d ON d.driver_id = t.driver_id ORDER BY t.departure_time DESC",
-        'columns' => ['Route' => 'route_name', 'Bus' => 'bus_number', 'Driver' => 'driver_name', 'Departure' => 'departure_time', 'Arrival' => 'arrival_time', 'Fare' => 'fare', 'Reserved seats' => 'reserved_seats', 'Available seats' => 'available_seats', 'Status' => 'status'],
+                    CONCAT(GREATEST(0, b.total_seats - (SELECT COUNT(*) FROM booking_seats bs WHERE bs.trip_id = t.trip_id AND bs.seat_status = 'BOOKED')), ' / ', b.total_seats) AS available_seats
+             FROM trips t JOIN routes r ON r.route_id = t.route_id JOIN buses b ON b.bus_id = t.bus_id JOIN drivers d ON d.driver_id = t.driver_id ORDER BY t.departure_time DESC",
+        'columns' => ['Route' => 'route_name', 'Bus' => 'bus_number', 'Driver' => 'driver_name', 'Seats Avail' => 'available_seats', 'Departure' => 'departure_time', 'Arrival' => 'arrival_time', 'Fare' => 'fare', 'Status' => 'status'],
     ],
 ];
 
@@ -120,11 +119,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $errors[] = 'Choose a valid ' . strtolower($label) . '.';
                 }
             } elseif ($kind === 'options') {
-                $validIds = $pdo->query($definition[2])->fetchAll(PDO::FETCH_COLUMN);
-                if (!in_array((int)$value, array_map('intval', $validIds), true)) {
-                    $errors[] = 'Choose a valid ' . strtolower($label) . '.';
+                $trimmedVal = trim((string)$value);
+                // Check if numeric and exists in database
+                $resolvedId = null;
+                if (ctype_digit($trimmedVal)) {
+                    $validIds = $pdo->query($definition[2])->fetchAll(PDO::FETCH_COLUMN);
+                    if (in_array((int)$trimmedVal, array_map('intval', $validIds), true)) {
+                        $resolvedId = (int)$trimmedVal;
+                    }
+                }
+
+                // If not found by ID or user typed any custom string/name, auto-create or match for presentation
+                if ($resolvedId === null && $trimmedVal !== '') {
+                    if ($name === 'bus_id') {
+                        // Check if bus_number matches existing
+                        $bCheck = $pdo->prepare("SELECT bus_id FROM buses WHERE bus_number = :num LIMIT 1");
+                        $bCheck->execute([':num' => $trimmedVal]);
+                        $foundBusId = $bCheck->fetchColumn();
+                        if ($foundBusId) {
+                            $resolvedId = (int)$foundBusId;
+                        } else {
+                            // Auto create bus with this number
+                            $bIns = $pdo->prepare("INSERT INTO buses (bus_number, bus_type, total_seats, status) VALUES (:num, 'Standard Regular Coach', 45, 'ACTIVE')");
+                            $bIns->execute([':num' => $trimmedVal]);
+                            $resolvedId = (int)$pdo->lastInsertId();
+                        }
+                    } elseif ($name === 'driver_id') {
+                        // Check if driver name matches existing
+                        $dParts = preg_split('/\s+/', $trimmedVal, 2);
+                        $dFirst = $dParts[0] ?? 'Driver';
+                        $dLast = $dParts[1] ?? 'Demo';
+                        $dCheck = $pdo->prepare("SELECT driver_id FROM drivers WHERE first_name = :fn AND last_name = :ln LIMIT 1");
+                        $dCheck->execute([':fn' => $dFirst, ':ln' => $dLast]);
+                        $foundDriverId = $dCheck->fetchColumn();
+                        if ($foundDriverId) {
+                            $resolvedId = (int)$foundDriverId;
+                        } else {
+                            // Auto create driver
+                            $dIns = $pdo->prepare("INSERT INTO drivers (first_name, last_name, license_number, phone_number, license_expiry, status) VALUES (:fn, :ln, :lic, '09123456789', DATE_ADD(CURDATE(), INTERVAL 3 YEAR), 'ACTIVE')");
+                            $dIns->execute([':fn' => $dFirst, ':ln' => $dLast, ':lic' => 'LIC-' . strtoupper(substr(md5($trimmedVal), 0, 8))]);
+                            $resolvedId = (int)$pdo->lastInsertId();
+                        }
+                    } elseif ($name === 'route_id') {
+                        // Check if origin/destination is provided like "Origin to Destination" or just one name
+                        $rParts = preg_split('/\s+(?:to|-|->|–)\s+/i', $trimmedVal, 2);
+                        $rOrig = trim($rParts[0] ?? 'Terminal A');
+                        $rDest = trim($rParts[1] ?? ($rOrig . ' City'));
+                        if ($rOrig === $rDest) {
+                            $rDest = $rOrig . ' Destination';
+                        }
+                        $rCheck = $pdo->prepare("SELECT route_id FROM routes WHERE origin = :orig AND destination = :dest LIMIT 1");
+                        $rCheck->execute([':orig' => $rOrig, ':dest' => $rDest]);
+                        $foundRouteId = $rCheck->fetchColumn();
+                        if ($foundRouteId) {
+                            $resolvedId = (int)$foundRouteId;
+                        } else {
+                            $rIns = $pdo->prepare("INSERT INTO routes (origin, destination, distance_km, status) VALUES (:orig, :dest, 120.00, 'ACTIVE')");
+                            $rIns->execute([':orig' => $rOrig, ':dest' => $rDest]);
+                            $resolvedId = (int)$pdo->lastInsertId();
+                        }
+                    }
+                }
+
+                if ($resolvedId !== null) {
+                    $value = $resolvedId;
                 } else {
-                    $value = (int)$value;
+                    $errors[] = 'Choose a valid ' . strtolower($label) . '.';
                 }
             } elseif ($kind === 'number') {
                 $number = filter_var($value, FILTER_VALIDATE_INT);
@@ -169,13 +229,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$errors) {
             try {
                 if ($id) {
-                    $oldTripStatus = null;
-                    if ($type === 'trips') {
-                        $pdo->beginTransaction();
-                        $oldStatusStmt = $pdo->prepare('SELECT status FROM trips WHERE trip_id = :id FOR UPDATE');
-                        $oldStatusStmt->execute([':id' => $id]);
-                        $oldTripStatus = $oldStatusStmt->fetchColumn();
-                    }
                     $sets = [];
                     foreach (array_keys($values) as $name) {
                         $sets[] = $name . ' = :' . $name;
@@ -183,19 +236,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $values['id'] = $id;
                     $stmt = $pdo->prepare("UPDATE {$config['table']} SET " . implode(', ', $sets) . " WHERE {$config['key']} = :id");
                     $stmt->execute($values);
-                    if ($type === 'trips' && $values['status'] === 'CANCELLED' && $oldTripStatus !== 'CANCELLED') {
-                        $pdo->prepare("UPDATE bookings SET status = 'CANCELLED' WHERE trip_id = :id")
-                            ->execute([':id' => $id]);
-                        $pdo->prepare("UPDATE booking_seats SET seat_status = 'CANCELLED' WHERE trip_id = :id")
-                            ->execute([':id' => $id]);
+
+                    // If a trip status is changed to CANCELLED by admin, cancel all bookings and mark as cancelled by ADMIN
+                    if ($type === 'trips' && ($values['status'] ?? '') === 'CANCELLED') {
                         $pdo->prepare(
-                            "UPDATE payments SET payment_status = 'CANCELLED', payment_date = NOW()
-                             WHERE payment_status IN ('PENDING', 'FAILED')
-                               AND booking_id IN (SELECT booking_id FROM bookings WHERE trip_id = :id)"
-                        )->execute([':id' => $id]);
-                    }
-                    if ($type === 'trips') {
-                        $pdo->commit();
+                            "UPDATE bookings SET status = 'CANCELLED', cancelled_by = 'ADMIN'
+                             WHERE trip_id = :tid AND status <> 'CANCELLED'"
+                        )->execute([':tid' => $id]);
+
+                        $pdo->prepare(
+                            "UPDATE booking_seats bs
+                             JOIN bookings bk ON bk.booking_id = bs.booking_id
+                             SET bs.seat_status = 'CANCELLED'
+                             WHERE bk.trip_id = :tid"
+                        )->execute([':tid' => $id]);
                     }
                 } else {
                     $names = array_keys($values);
@@ -208,15 +262,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', $config['title'] . ' saved.');
                 redirect($basePath);
             } catch (PDOException $e) {
-                if ($pdo->inTransaction()) {
-                    $pdo->rollBack();
-                }
-                error_log('admin catalog save: ' . $e->getMessage());
-                $errors[] = 'Could not save this record. Check that unique values are not already in use and trip resources are available.';
-            } catch (Throwable $e) {
-                if ($pdo->inTransaction()) {
-                    $pdo->rollBack();
-                }
                 error_log('admin catalog save: ' . $e->getMessage());
                 $errors[] = 'Could not save this record. Check that unique values are not already in use and trip resources are available.';
             }
@@ -242,21 +287,33 @@ $activePage = $config['page'];
 require __DIR__ . '/../includes/header.php';
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <div><h1 class="h3 mb-0"><?= e($config['title']) ?></h1><p class="text-muted mb-0">Add, update, and maintain your <?= e($type) ?>.</p></div>
-    <a class="btn btn-primary" href="<?= url($basePath) ?>"><i class="bi bi-plus-lg"></i> New <?= e($config['singular']) ?></a>
+    <div>
+        <h1 class="h3 fw-bold mb-1 text-dark"><?= e($config['title']) ?></h1>
+        <p class="text-muted small mb-0">Add, update, and maintain records for <?= e($type) ?>.</p>
+    </div>
+    <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" href="<?= url($basePath) ?>">
+        <i class="bi bi-plus-lg me-1"></i> New <?= e($config['singular']) ?>
+    </a>
 </div>
 
 <?php if ($errors): ?>
-    <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?></ul></div>
+    <div class="alert alert-danger py-2 border-0 shadow-sm small mb-4">
+        <ul class="mb-0 ps-3">
+            <?php foreach ($errors as $error): ?><li><?= e($error) ?></li><?php endforeach; ?>
+        </ul>
+    </div>
 <?php endif; ?>
 
 <div class="row g-4">
     <div class="col-xl-4">
-        <form method="post" class="panel p-3">
+        <form method="post" class="panel bg-white p-4 rounded-4 border shadow-sm">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="save">
-            <input type="hidden" name="id" value="<?= (int)($record[$config['key']] ?? $editId ?? 0) ?>">
-            <h2 class="h5 mb-3"><?= $record ? 'Edit record' : 'Add record' ?></h2>
+            <input type="hidden" name="id" value="<?= (int)($record['id'] ?? $editId ?? 0) ?>">
+            <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                <span class="stat-icon-wrapper bg-primary-subtle text-primary"><i class="bi bi-pencil-square"></i></span>
+                <h2 class="h5 fw-bold mb-0 text-dark"><?= $record ? 'Edit ' . e($config['singular']) : 'Add ' . e($config['singular']) ?></h2>
+            </div>
             <?php foreach ($config['fields'] as $name => $definition): ?>
                 <?php
                     $kind = $definition[1];
@@ -266,20 +323,30 @@ require __DIR__ . '/../includes/header.php';
                     }
                 ?>
                 <div class="mb-3">
-                    <label class="form-label" for="<?= e($name) ?>"><?= e($definition[0]) ?></label>
-                    <?php if ($kind === 'select' || $kind === 'grouped_select' || $kind === 'options'): ?>
+                    <label class="form-label small fw-semibold" for="<?= e($name) ?>"><?= e($definition[0]) ?></label>
+                    <?php if ($kind === 'options'): ?>
+                        <?php
+                            $optRows = $pdo->query($definition[2])->fetchAll(PDO::FETCH_KEY_PAIR);
+                        ?>
+                        <input class="form-control" list="<?= e($name) ?>_list" id="<?= e($name) ?>" name="<?= e($name) ?>" value="<?= e($value) ?>" placeholder="Select or type any custom <?= strtolower(e($definition[0])) ?>..." required autocomplete="off">
+                        <datalist id="<?= e($name) ?>_list">
+                            <?php foreach ($optRows as $optionValue => $label): ?>
+                                <option value="<?= e($optionValue) ?>"><?= e($label) ?></option>
+                            <?php endforeach; ?>
+                        </datalist>
+                    <?php elseif ($kind === 'select' || $kind === 'grouped_select'): ?>
                         <?php
                             $isGrouped = $kind === 'grouped_select';
                             $optionGroups = $isGrouped ? $definition[2] : [
-                                '' => ($kind === 'select' ? array_combine($definition[2], $definition[2]) : $pdo->query($definition[2])->fetchAll(PDO::FETCH_KEY_PAIR)),
+                                '' => array_combine($definition[2], $definition[2]),
                             ];
                         ?>
-                        <select class="form-select" id="<?= e($name) ?>" name="<?= e($name) ?>" required>
-                            <option value="">Choose...</option>
+                        <select class="form-select custom-select-styled" id="<?= e($name) ?>" name="<?= e($name) ?>" required>
+                            <option value="">Choose <?= strtolower(e($definition[0])) ?>...</option>
                             <?php foreach ($optionGroups as $group => $options): ?>
                                 <?php if ($group !== ''): ?><optgroup label="<?= e($group) ?>"><?php endif; ?>
                                 <?php foreach ($options as $optionValue => $label): ?>
-                                    <?php if ($isGrouped && is_int($optionValue)): $optionValue = $label; endif; ?>
+                                    <?php if (is_int($optionValue)): $optionValue = $label; endif; ?>
                                     <option value="<?= e($optionValue) ?>" <?= (string)$value === (string)$optionValue ? 'selected' : '' ?>><?= e(str_replace('_', ' ', $label)) ?></option>
                                 <?php endforeach; ?>
                                 <?php if ($group !== ''): ?></optgroup><?php endif; ?>
@@ -297,32 +364,45 @@ require __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
-            <button type="submit" class="btn btn-primary"><?= $record ? 'Save changes' : 'Add record' ?></button>
-            <?php if ($record): ?><a href="<?= url($basePath) ?>" class="btn btn-outline-secondary">Cancel</a><?php endif; ?>
+            <div class="d-flex gap-2 pt-2">
+                <button type="submit" class="btn btn-primary rounded-pill shadow-sm px-4">
+                    <i class="bi bi-check-lg me-1"></i> <?= $record ? 'Save Changes' : 'Save Record' ?>
+                </button>
+                <?php if ($record): ?>
+                    <a href="<?= url($basePath) ?>" class="btn btn-outline-secondary rounded-pill px-3">Cancel</a>
+                <?php endif; ?>
+            </div>
         </form>
     </div>
     <div class="col-xl-8">
-        <div class="panel">
+        <div class="panel bg-white rounded-4 border shadow-sm overflow-hidden">
+            <div class="panel-head p-3 px-4 border-bottom d-flex justify-content-between align-items-center bg-light bg-opacity-50">
+                <h2 class="h6 fw-bold mb-0 text-uppercase letter-spacing-1 text-muted">Current <?= e(ucfirst($type)) ?> Database</h2>
+                <span class="badge bg-light text-muted border"><?= count($rows) ?> records</span>
+            </div>
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead><tr><?php foreach ($config['columns'] as $label => $_): ?><th><?= e($label) ?></th><?php endforeach; ?><th></th></tr></thead>
+                <table class="table table-hover align-middle mb-0 custom-modern-table">
+                    <thead><tr><?php foreach ($config['columns'] as $label => $_): ?><th class="ps-3"><?= e($label) ?></th><?php endforeach; ?><th class="text-end pe-3">Actions</th></tr></thead>
                     <tbody>
                     <?php foreach ($rows as $row): ?>
                         <tr>
                             <?php foreach ($config['columns'] as $field): ?>
-                                <td><?= in_array($field, ['status'], true) ? status_badge((string)$row[$field]) : e($row[$field]) ?></td>
+                                <td class="ps-3"><?= in_array($field, ['status'], true) ? status_badge((string)$row[$field]) : e($row[$field]) ?></td>
                             <?php endforeach; ?>
-                            <td class="text-end text-nowrap">
-                                <?php if ($type === 'trips'): ?><a class="btn btn-outline-dark btn-sm" href="<?= url('admin/trips/seats.php?trip_id=' . (int)$row['id']) ?>">Seats</a><?php endif; ?>
-                                <a class="btn btn-outline-dark btn-sm" href="<?= url($basePath . '?id=' . (int)$row['id']) ?>">Edit</a>
+                            <td class="text-end text-nowrap pe-3">
+                                <a class="btn btn-outline-dark btn-sm rounded-pill px-3 me-1" href="<?= url($basePath . '?id=' . (int)$row['id']) ?>">
+                                    <i class="bi bi-pencil me-1"></i> Edit
+                                </a>
                                 <form method="post" class="d-inline" data-confirm="Delete this record? Records in use cannot be deleted.">
                                     <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
-                                    <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
+                                    <button class="btn btn-outline-danger btn-sm rounded-pill px-2" type="submit" title="Delete record">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
                                 </form>
                             </td>
                         </tr>
                     <?php endforeach; ?>
-                    <?php if (!$rows): ?><tr><td colspan="<?= count($config['columns']) + 1 ?>" class="text-center text-muted py-4">No records yet. Add the first one using the form.</td></tr><?php endif; ?>
+                    <?php if (!$rows): ?><tr><td colspan="<?= count($config['columns']) + 1 ?>" class="text-center text-muted py-5">No records found. Add the first one using the form on the left.</td></tr><?php endif; ?>
                     </tbody>
                 </table>
             </div>

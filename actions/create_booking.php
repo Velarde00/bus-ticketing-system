@@ -8,6 +8,8 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_role('PASSENGER');
 
+const MAX_SEATS = 6;
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('index.php');
 }
@@ -29,12 +31,9 @@ if (!$tripId) {
     fail('Invalid trip.', 'index.php');
 }
 
-// Manual transfer is verified by an administrator before tickets are issued.
-$method = 'MANUAL_TRANSFER';
-$paymentOption = $_POST['online_payment_option'] ?? '';
-if (!is_string($paymentOption) || !in_array($paymentOption, ['GCASH', 'MAYA', 'MARIBANK', 'BANK_TRANSFER'], true)) {
-    fail('Choose an online payment method.', $back);
-}
+// Online passenger bookings must use E-Wallet — Cash and Card are walk-in only
+$method = 'E_WALLET';
+
 // Clean the seat list: whole numbers only, no duplicates
 $rawSeats = $_POST['seats'] ?? [];
 if (!is_array($rawSeats)) {
@@ -54,6 +53,10 @@ sort($seats);
 if (count($seats) < 1) {
     fail('Select at least one seat.', $back);
 }
+if (count($seats) > MAX_SEATS) {
+    fail('You can book up to ' . MAX_SEATS . ' seats at a time.', $back);
+}
+
 try {
     $pdo->beginTransaction();
 
@@ -75,9 +78,6 @@ try {
             throw new RuntimeException('Seat ' . $n . ' does not exist on this bus.');
         }
     }
-    if (count($seats) > (int)$trip['total_seats']) {
-        throw new RuntimeException('Choose only seats available on this bus.');
-    }
 
     // Friendly check: are any chosen seats already taken?
     $marks = implode(',', array_fill(0, count($seats), '?'));
@@ -92,39 +92,105 @@ try {
     }
 
     // Price comes from the database, not from the form
-    $fare  = (float)$trip['fare'];
-    $total = $fare * count($seats);
+    $baseFare = (float)$trip['fare'];
 
-    // 1) booking (temporary reference first, because the real one uses the booking_id)
+    // Process discounts for Student, Senior Citizen, and PWD (20% discount under Philippine Law)
+    $validTypes = ['REGULAR', 'STUDENT', 'SENIOR', 'PWD'];
+    $postTypes  = $_POST['passenger_type'] ?? [];
+    $postIds    = $_POST['id_number'] ?? [];
+
+    $seatDetails   = [];
+    $totalFare     = 0.0;
+    $totalDiscount = 0.0;
+
+    foreach ($seats as $n) {
+        $pType = 'REGULAR';
+        if (is_array($postTypes) && isset($postTypes[$n])) {
+            $val = strtoupper(trim((string)$postTypes[$n]));
+            if (in_array($val, $validTypes, true)) {
+                $pType = $val;
+            }
+        } elseif (is_string($postTypes)) {
+            $val = strtoupper(trim($postTypes));
+            if (in_array($val, $validTypes, true)) {
+                $pType = $val;
+            }
+        }
+
+        $idNum = null;
+        if (is_array($postIds) && isset($postIds[$n])) {
+            $idNum = trim(substr((string)$postIds[$n], 0, 50)) ?: null;
+        } elseif (is_string($postIds)) {
+            $idNum = trim(substr($postIds, 0, 50)) ?: null;
+        }
+
+        $seatDiscount = 0.0;
+        if (in_array($pType, ['STUDENT', 'SENIOR', 'PWD'], true)) {
+            // 20% discount rounded to 2 decimals
+            $seatDiscount = round($baseFare * 0.20, 2);
+        }
+        $seatPrice = max(0.0, $baseFare - $seatDiscount);
+
+        $seatDetails[$n] = [
+            'type'     => $pType,
+            'price'    => $seatPrice,
+            'discount' => $seatDiscount,
+            'id_num'   => $idNum,
+        ];
+
+        $totalFare     += $seatPrice;
+        $totalDiscount += $seatDiscount;
+    }
+
+    // 1) booking (starts as PENDING awaiting online OTP payment authorization)
     $insert = $pdo->prepare(
-        "INSERT INTO bookings (user_id, trip_id, booking_reference, status)
-         VALUES (:uid, :trip, :ref, 'PENDING')"
+        "INSERT INTO bookings (user_id, trip_id, booking_reference, total_discount, status)
+         VALUES (:uid, :trip, :ref, :discount, 'PENDING')"
     );
-    $insert->execute([':uid' => $uid, ':trip' => $tripId, ':ref' => 'TMP-' . bin2hex(random_bytes(7))]);
+    $insert->execute([
+        ':uid'      => $uid,
+        ':trip'     => $tripId,
+        ':ref'      => 'TMP-' . bin2hex(random_bytes(7)),
+        ':discount' => $totalDiscount,
+    ]);
     $bookingId = (int)$pdo->lastInsertId();
 
     $reference = sprintf('BT-%s-%06d', date('Y'), $bookingId);
     $pdo->prepare('UPDATE bookings SET booking_reference = :ref WHERE booking_id = :id')
         ->execute([':ref' => $reference, ':id' => $bookingId]);
 
-    // 2) one row per seat
+    // 2) one row per seat with passenger type, discounted price, and ID number
     $seatInsert = $pdo->prepare(
-        "INSERT INTO booking_seats (booking_id, trip_id, seat_number, price, seat_status)
-         VALUES (:booking, :trip, :seat, :price, 'BOOKED')"
+        "INSERT INTO booking_seats (booking_id, trip_id, seat_number, passenger_type, price, discount_amount, id_number, seat_status)
+         VALUES (:booking, :trip, :seat, :ptype, :price, :discount, :id_num, 'BOOKED')"
     );
     foreach ($seats as $n) {
-        $seatInsert->execute([':booking' => $bookingId, ':trip' => $tripId, ':seat' => $n, ':price' => $fare]);
+        $d = $seatDetails[$n];
+        $seatInsert->execute([
+            ':booking'  => $bookingId,
+            ':trip'     => $tripId,
+            ':seat'     => $n,
+            ':ptype'    => $d['type'],
+            ':price'    => $d['price'],
+            ':discount' => $d['discount'],
+            ':id_num'   => $d['id_num'],
+        ]);
     }
 
-    // The administrator verifies the transfer before confirming the booking.
+    $walletChoice = strtoupper(trim((string)($_POST['online_wallet'] ?? 'GCASH')));
+    if (!in_array($walletChoice, ['GCASH', 'MAYA'], true)) {
+        $walletChoice = 'GCASH';
+    }
+
+    // 3) payment record (starts as PENDING for OTP verification)
     $pdo->prepare(
         "INSERT INTO payments (booking_id, amount, payment_method, online_payment_option, payment_status)
-         VALUES (:booking, :amount, :method, :option, 'PENDING')"
+         VALUES (:booking, :amount, :method, :opt, 'PENDING')"
     )->execute([
         ':booking' => $bookingId,
-        ':amount' => $total,
-        ':method' => $method,
-        ':option' => $paymentOption,
+        ':amount'  => $totalFare,
+        ':method'  => $method,
+        ':opt'     => $walletChoice
     ]);
 
     $pdo->commit();
@@ -145,5 +211,26 @@ try {
     fail($e->getMessage(), $back);
 }
 
-set_flash('success', 'Reservation saved. Follow the transfer instructions and submit your payment reference.');
-redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);
+// Fetch user email and phone to send Payment OTP
+$uStmt = $pdo->prepare('SELECT email, phone_number FROM users WHERE user_id = :id');
+$uStmt->execute([':id' => $uid]);
+$userData = $uStmt->fetch();
+
+$userEmail = $userData['email'] ?? '';
+$userPhone = $userData['phone_number'] ?? '';
+
+$otpData = create_and_dispatch_otp($pdo, $userEmail, $userPhone, 'PAYMENT', $uid, $bookingId);
+
+$_SESSION['pending_payment_otp'] = [
+    'booking_id'   => $bookingId,
+    'wallet'       => $walletChoice,
+    'amount'       => $totalFare,
+    'email'        => $userEmail,
+    'phone'        => $userPhone,
+    'masked_email' => $otpData['masked_email'],
+    'masked_phone' => $otpData['masked_phone'],
+    'code'         => $otpData['code'],
+    'expires_at'   => $otpData['expires_at'],
+];
+
+redirect('passenger/verify_payment.php?booking_id=' . $bookingId);

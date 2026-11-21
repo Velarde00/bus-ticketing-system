@@ -90,73 +90,132 @@ function fmt_time(?string $value): string
     return $value ? date('g:i A', strtotime($value)) : '—';
 }
 
-function payment_method_label(string $method): string
-{
-    return [
-        'CASH' => 'Cash',
-        'E_WALLET' => 'E-wallet',
-        'CARD' => 'Card',
-        'ONLINE' => 'Legacy online payment',
-        'MANUAL_TRANSFER' => 'Manual transfer',
-    ][$method] ?? str_replace('_', '-', ucfirst(strtolower($method)));
-}
-
-function online_payment_option_label(?string $option): string
-{
-    return [
-        'GCASH' => 'GCash',
-        'MAYA' => 'Maya',
-        'MARIBANK' => 'MariBank',
-        'BANK_TRANSFER' => 'Online bank transfer (BPI / UnionBank)',
-    ][$option ?? ''] ?? 'Not specified';
-}
-
-function add_notification(PDO $pdo, int $userId, string $title, string $message, ?string $link = null): void
-{
-    $stmt = $pdo->prepare(
-        'INSERT INTO notifications (user_id, title, message, link) VALUES (:user, :title, :message, :link)'
-    );
-    $stmt->execute([':user' => $userId, ':title' => $title, ':message' => $message, ':link' => $link]);
-}
-
-function notify_active_roles(PDO $pdo, array $roles, string $title, string $message, ?string $link = null): void
-{
-    $roles = array_values(array_intersect($roles, ['ADMIN', 'SUPER_ADMIN', 'PASSENGER']));
-    if (!$roles) {
-        return;
-    }
-    $marks = implode(',', array_fill(0, count($roles), '?'));
-    $stmt = $pdo->prepare("SELECT user_id FROM users WHERE account_status = 'ACTIVE' AND role IN ($marks)");
-    $stmt->execute($roles);
-    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $userId) {
-        add_notification($pdo, (int)$userId, $title, $message, $link);
-    }
-}
-
 /** Keep what the user typed in a form after an error. */
 function old(string $key, string $default = ''): string
 {
     return e($_POST[$key] ?? $default);
 }
 
-/** Colored status label (Bootstrap badge). */
+/** Colored status label (Modern status badge with icon and dot). */
 function status_badge(string $status): string
 {
     $map = [
-        'PENDING'     => 'warning',
-        'CONFIRMED'   => 'success',
-        'CANCELLED'   => 'secondary',
-        'PAID'        => 'success',
-        'FAILED'      => 'danger',
-        'REFUND_REQUESTED' => 'warning',
-        'REFUNDED'    => 'info',
-        'SCHEDULED'   => 'primary',
-        'COMPLETED'   => 'success',
-        'ACTIVE'      => 'success',
-        'INACTIVE'    => 'secondary',
-        'MAINTENANCE' => 'warning',
+        'PENDING'     => ['warning', 'bi-clock-history'],
+        'CONFIRMED'   => ['success', 'bi-check-circle-fill'],
+        'CANCELLED'   => ['secondary', 'bi-x-circle-fill'],
+        'PAID'        => ['success', 'bi-cash-stack'],
+        'FAILED'      => ['danger', 'bi-exclamation-octagon-fill'],
+        'REFUNDED'    => ['info', 'bi-arrow-counterclockwise'],
+        'SCHEDULED'   => ['primary', 'bi-calendar2-check-fill'],
+        'COMPLETED'   => ['success', 'bi-flag-fill'],
+        'ACTIVE'      => ['success', 'bi-check2-circle'],
+        'INACTIVE'    => ['secondary', 'bi-dash-circle'],
+        'MAINTENANCE' => ['warning', 'bi-tools'],
     ];
-    $color = $map[$status] ?? 'secondary';
-    $text  = in_array($color, ['warning', 'info'], true) ? 'text-dark' : '';
-    return '<span class="badge rounded-pill text-bg-' . $color . ' ' . $text . '">' . e(ucfirst(strtolower(str_replace('_', ' ', $status)))) . '</span>';
+    $cfg = $map[$status] ?? ['secondary', 'bi-record-fill'];
+    $variant = $cfg[0];
+    $icon = $cfg[1];
+    $label = e(ucfirst(strtolower(str_replace('_', ' ', $status))));
+    return '<span class="status-badge status-' . strtolower($status) . ' status-variant-' . $variant . '"><span class="status-dot"></span><i class="bi ' . $icon . '"></i>' . $label . '</span>';
 }
+
+/** Discount rate for Students, Senior Citizens, and PWDs (20% mandatory discount under Philippine Law). */
+const DISCOUNT_RATE_PERCENT = 20;
+
+function passenger_type_badge(string $type): string
+{
+    $type = strtoupper($type);
+    return match ($type) {
+        'STUDENT' => '<span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill small"><i class="bi bi-mortarboard-fill me-1"></i>Student (20% off)</span>',
+        'SENIOR'  => '<span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 rounded-pill small"><i class="bi bi-person-heart me-1"></i>Senior Citizen (20% off)</span>',
+        'PWD'     => '<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill small"><i class="bi bi-universal-access me-1"></i>PWD (20% off)</span>',
+        default   => '<span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">Regular</span>',
+    };
+}
+
+function passenger_type_label(string $type): string
+{
+    $type = strtoupper($type);
+    return match ($type) {
+        'STUDENT' => 'Student (20% Discount)',
+        'SENIOR'  => 'Senior Citizen (20% Discount)',
+        'PWD'     => 'PWD (20% Discount)',
+        default   => 'Regular (Standard Fare)',
+    };
+}
+
+/**
+ * Generates and stores a 6-digit OTP for Email & Mobile Number delivery.
+ * Supports mail() sending and local inbox delivery.
+ */
+function create_and_dispatch_otp(PDO $pdo, string $email, string $phone, string $purpose, ?int $userId = null, ?int $referenceId = null): array
+{
+    // Generate secure 6-digit OTP
+    $code = sprintf('%06d', random_int(100000, 999999));
+    $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes validity
+
+    // Invalidate prior unused OTPs for this email and purpose
+    $inv = $pdo->prepare('UPDATE user_otps SET is_used = 1 WHERE email = :email AND purpose = :purpose AND is_used = 0');
+    $inv->execute([':email' => $email, ':purpose' => $purpose]);
+
+    // Save newly generated OTP
+    $ins = $pdo->prepare(
+        'INSERT INTO user_otps (user_id, email, otp_code, purpose, reference_id, expires_at, is_used)
+         VALUES (:uid, :email, :code, :purpose, :ref, :expires, 0)'
+    );
+    $ins->execute([
+        ':uid'     => $userId,
+        ':email'   => $email,
+        ':code'    => $code,
+        ':purpose' => $purpose,
+        ':ref'     => $referenceId,
+        ':expires' => $expiresAt
+    ]);
+
+    // Dispatch via email
+    $subject = $purpose === 'LOGIN' ? 'Your BusTicket Sign-In OTP' : 'BusTicket Payment Verification OTP';
+    $message = "Hello,\r\n\r\nYour One-Time Password (OTP) is: $code\r\n\r\nThis code is valid for 10 minutes.\r\nIf you did not request this code, please ignore this email.\r\n\r\nThank you,\r\nBusTicket Reservation System";
+    $headers = "From: noreply@busticket.ph\r\nReply-To: support@busticket.ph\r\nX-Mailer: PHP/" . phpversion();
+
+    @mail($email, $subject, $message, $headers);
+
+    // Mask phone and email for display
+    $maskedEmail = preg_replace('/(?<=.{2}).(?=.*@)/u', '*', $email);
+    $maskedPhone = strlen($phone) >= 7 ? substr($phone, 0, 4) . '***' . substr($phone, -3) : $phone;
+
+    return [
+        'code'         => $code,
+        'expires_at'   => $expiresAt,
+        'masked_email' => $maskedEmail,
+        'masked_phone' => $maskedPhone,
+    ];
+}
+
+/**
+ * Validates an OTP entered by the user.
+ */
+function verify_otp_code(PDO $pdo, string $email, string $code, string $purpose): bool
+{
+    $stmt = $pdo->prepare(
+        'SELECT otp_id, expires_at FROM user_otps
+         WHERE email = :email AND otp_code = :code AND purpose = :purpose AND is_used = 0
+         ORDER BY otp_id DESC LIMIT 1'
+    );
+    $stmt->execute([':email' => $email, ':code' => trim($code), ':purpose' => $purpose]);
+    $row = $stmt->fetch();
+
+    if (!$row) {
+        return false;
+    }
+
+    if (strtotime($row['expires_at']) < time()) {
+        return false;
+    }
+
+    // Mark as used
+    $pdo->prepare('UPDATE user_otps SET is_used = 1 WHERE otp_id = :id')
+        ->execute([':id' => $row['otp_id']]);
+
+    return true;
+}
+

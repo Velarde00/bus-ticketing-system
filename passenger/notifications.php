@@ -1,100 +1,125 @@
 <?php
+/**
+ * passenger/notifications.php
+ * Displays trip alerts, status updates, and booking notifications for the logged-in passenger.
+ */
 require_once __DIR__ . '/../includes/auth.php';
 require_role('PASSENGER');
 
-$stmt = $pdo->prepare(
-    "SELECT bk.booking_id, bk.booking_reference, bk.booking_date, bk.cancellation_choice,
-            t.departure_time, r.origin, r.destination, b.bus_number,
-            p.payment_status, p.payment_method, p.refund_payment_option,
-            p.refund_account_name, p.refund_account_number, p.refund_transfer_reference,
-            (p.payment_status IN ('PAID', 'REFUND_REQUESTED')
-                AND bk.booking_date <= DATE_SUB(t.departure_time, INTERVAL 2 DAY)) AS refund_eligible
-     FROM bookings bk JOIN trips t ON t.trip_id = bk.trip_id
-     JOIN routes r ON r.route_id = t.route_id JOIN buses b ON b.bus_id = t.bus_id
-     LEFT JOIN payments p ON p.payment_id = (
-         SELECT p2.payment_id FROM payments p2 WHERE p2.booking_id = bk.booking_id
-         ORDER BY p2.payment_date DESC, p2.payment_id DESC LIMIT 1
-     )
-     WHERE bk.user_id = :uid AND bk.status = 'CANCELLED' AND t.status = 'CANCELLED'
-     ORDER BY bk.booking_date DESC"
-);
-$stmt->execute([':uid' => (int)$_SESSION['user_id']]);
-$notifications = $stmt->fetchAll();
+$uid = (int)$_SESSION['user_id'];
 
-$pageTitle = 'Trip notifications';
-$layout = 'public';
+// Fetch the passenger's recent bookings with trip details to generate live notification alerts
+$stmt = $pdo->prepare(
+    "SELECT bk.booking_id, bk.booking_reference, bk.booking_date, bk.status, bk.cancelled_by, bk.cancellation_choice,
+            r.origin, r.destination, t.departure_time, t.status AS trip_status, b.bus_number, b.bus_type,
+            (SELECT p.payment_status FROM payments p WHERE p.booking_id = bk.booking_id
+             ORDER BY p.payment_date DESC, p.payment_id DESC LIMIT 1) AS payment_status
+     FROM bookings bk
+     JOIN trips  t ON t.trip_id  = bk.trip_id
+     JOIN routes r ON r.route_id = t.route_id
+     JOIN buses  b ON b.bus_id   = t.bus_id
+     WHERE bk.user_id = :uid
+     ORDER BY bk.booking_date DESC
+     LIMIT 20"
+);
+$stmt->execute([':uid' => $uid]);
+$bookings = $stmt->fetchAll();
+
+$pageTitle = 'Notifications';
+$layout    = 'public';
 require __DIR__ . '/../includes/header.php';
 ?>
-<div class="container py-4">
-    <div class="mb-4">
-        <h1 class="h3 mb-1">Trip notifications</h1>
-        <p class="text-muted mb-0">Updates about trips cancelled by the operator.</p>
+<div class="container py-4" style="max-width: 860px;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-bell-fill text-primary"></i> Notifications
+            </h1>
+            <p class="text-muted small mb-0">Stay informed about your booking confirmations, departure reminders, and payment updates.</p>
+        </div>
+        <a href="<?= url('passenger/my_bookings.php') ?>" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+            <i class="bi bi-ticket-perforated me-1"></i> My Bookings
+        </a>
     </div>
-    <?php if (!$notifications): ?>
-        <div class="empty-state"><i class="bi bi-bell-slash"></i><p class="mb-0">You have no trip cancellation notifications.</p></div>
+
+    <?php if (!$bookings): ?>
+        <div class="panel p-5 bg-white rounded-4 border shadow-sm text-center">
+            <div class="empty-state py-4">
+                <div class="empty-state-icon mb-3">
+                    <i class="bi bi-bell-slash fs-1 text-muted"></i>
+                </div>
+                <h2 class="h5 fw-bold mb-2">No Notifications Yet</h2>
+                <p class="text-muted small max-w-500 mx-auto mb-4">
+                    You don't have any notifications or booking alerts at this time. When you book a trip or when your payment is confirmed, updates will appear here.
+                </p>
+                <a href="<?= url('index.php') ?>#search" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-search me-1"></i> Search and Book Trips
+                </a>
+            </div>
+        </div>
     <?php else: ?>
-        <div class="panel">
-            <?php foreach ($notifications as $notification): ?>
+        <div class="d-flex flex-column gap-3">
+            <?php foreach ($bookings as $b): ?>
                 <?php
-                $needsRefundDetails = $notification['refund_eligible']
-                    && ($notification['cancellation_choice'] === null
-                        || ($notification['cancellation_choice'] === 'REFUND_REQUESTED' && !$notification['refund_payment_option']));
+                    $depTs = strtotime($b['departure_time']);
+                    $isUpcoming = $depTs > time() && $b['status'] !== 'CANCELLED';
+                    $hoursUntil = ($depTs - time()) / 3600;
+
+                    // Determine notification styling based on booking state
+                    if ($b['status'] === 'CONFIRMED') {
+                        $badgeClass = 'bg-success-subtle text-success border border-success-subtle';
+                        $iconClass  = 'bi-check-circle-fill text-success';
+                        $title      = 'Booking Confirmed & Ready for Boarding';
+                        $msg        = "Your booking {$b['booking_reference']} from {$b['origin']} to {$b['destination']} is confirmed. Digital tickets are ready to print.";
+                    } elseif ($b['status'] === 'PENDING') {
+                        $badgeClass = 'bg-warning-subtle text-dark border border-warning-subtle';
+                        $iconClass  = 'bi-hourglass-split text-warning';
+                        $title      = 'Payment Awaiting Verification';
+                        $msg        = "Reservation {$b['booking_reference']} ({$b['origin']} → {$b['destination']}) is recorded. Please settle or verify your e-wallet payment.";
+                    } else {
+                        $isCancelledByAdmin = ($b['cancelled_by'] === 'ADMIN') || ($b['trip_status'] === 'CANCELLED');
+                        if ($isCancelledByAdmin) {
+                            $badgeClass = 'bg-danger-subtle text-danger border border-danger-subtle';
+                            $iconClass  = 'bi-exclamation-octagon-fill text-danger';
+                            $title      = 'Trip Cancelled by Operator — Action Required';
+                            $msg        = "Your scheduled bus for booking {$b['booking_reference']} ({$b['origin']} → {$b['destination']}) was cancelled by the bus company. You can rebook a similar trip or request a full refund.";
+                        } else {
+                            $badgeClass = 'bg-secondary-subtle text-muted border';
+                            $iconClass  = 'bi-x-circle-fill text-secondary';
+                            $title      = 'Booking Cancelled';
+                            $msg        = "Reservation {$b['booking_reference']} was cancelled by you and assigned seats were released.";
+                        }
+                    }
                 ?>
-                <article class="p-3 border-bottom">
-                    <div class="d-flex flex-wrap justify-content-between gap-2">
-                        <div>
-                            <h2 class="h5 mb-1"><?= e($notification['origin']) ?> to <?= e($notification['destination']) ?></h2>
-                            <p class="text-muted mb-2"><?= e(fmt_datetime($notification['departure_time'])) ?> · Bus <?= e($notification['bus_number']) ?> · <?= e($notification['booking_reference']) ?></p>
+                <div class="card border rounded-4 shadow-sm p-3 p-md-4 bg-white">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="p-2 rounded-circle bg-light flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                            <i class="bi <?= $iconClass ?> fs-4"></i>
                         </div>
-                        <?php if ($notification['cancellation_choice'] === 'REFUND_REQUESTED'): ?>
-                            <span class="badge text-bg-info align-self-start"><?= $notification['payment_status'] === 'REFUNDED' ? 'Refund sent' : 'Refund requested' ?></span>
-                        <?php elseif ($notification['cancellation_choice'] === 'REBOOK_REQUESTED'): ?>
-                            <span class="badge text-bg-secondary align-self-start">Rebooking selected</span>
-                        <?php endif; ?>
-                    </div>
-                    <?php if ($needsRefundDetails): ?>
-                        <form method="post" action="<?= url('actions/resolve_trip_cancellation.php') ?>" class="mb-3">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="booking_id" value="<?= (int)$notification['booking_id'] ?>">
-                            <input type="hidden" name="choice" value="refund">
-                            <fieldset>
-                                <legend class="h6">Online refund destination</legend>
-                                <div class="row g-2">
-                                    <div class="col-md-4"><label class="form-label" for="refund-method-<?= (int)$notification['booking_id'] ?>">Method</label>
-                                        <select class="form-select" id="refund-method-<?= (int)$notification['booking_id'] ?>" name="refund_payment_option" required>
-                                            <option value="">Choose a method</option>
-                                            <?php foreach (['GCASH' => 'GCash', 'MAYA' => 'Maya', 'MARIBANK' => 'MariBank', 'BANK_TRANSFER' => 'Online bank transfer'] as $option => $label): ?>
-                                                <option value="<?= e($option) ?>" <?= $notification['refund_payment_option'] === $option ? 'selected' : '' ?>><?= e($label) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4"><label class="form-label" for="refund-name-<?= (int)$notification['booking_id'] ?>">Account name</label><input class="form-control" id="refund-name-<?= (int)$notification['booking_id'] ?>" name="refund_account_name" maxlength="120" value="<?= e($notification['refund_account_name'] ?? '') ?>" required></div>
-                                    <div class="col-md-4"><label class="form-label" for="refund-number-<?= (int)$notification['booking_id'] ?>">Account number / mobile</label><input class="form-control" id="refund-number-<?= (int)$notification['booking_id'] ?>" name="refund_account_number" maxlength="120" value="<?= e($notification['refund_account_number'] ?? '') ?>" required></div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                                <h2 class="h6 fw-bold mb-0 text-dark"><?= e($title) ?></h2>
+                                <span class="badge <?= $badgeClass ?> px-2 py-1 rounded-pill small">
+                                    <?= e($b['status']) ?>
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-2"><?= e($msg) ?></p>
+
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
+                                <div class="d-flex flex-wrap align-items-center gap-2 text-muted small" style="font-size: 0.78rem;">
+                                    <span><i class="bi bi-clock me-1 text-primary"></i> Departure: <?= e(fmt_date($b['departure_time'])) ?> &bull; <?= e(fmt_time($b['departure_time'])) ?></span>
+                                    <span>&bull;</span>
+                                    <span>Bus <?= e($b['bus_number']) ?> (<?= e($b['bus_type']) ?>)</span>
                                 </div>
-                                <button class="btn btn-primary btn-sm mt-3" type="submit"><i class="bi bi-arrow-counterclockwise"></i> <?= $notification['cancellation_choice'] === 'REFUND_REQUESTED' ? 'Save refund destination' : 'Request online refund' ?></button>
-                            </fieldset>
-                        </form>
-                    <?php endif; ?>
-                    <?php if ($notification['cancellation_choice'] === null): ?>
-                        <div class="d-flex flex-wrap align-items-center gap-2">
-                            <?php if (!$notification['refund_eligible']): ?>
-                                <span class="small text-muted">Refund unavailable: this reservation was not paid at least 2 days before departure.</span>
-                            <?php endif; ?>
-                            <form method="post" action="<?= url('actions/resolve_trip_cancellation.php') ?>">
-                                <?= csrf_field() ?><input type="hidden" name="booking_id" value="<?= (int)$notification['booking_id'] ?>"><input type="hidden" name="choice" value="rebook">
-                                <button class="btn btn-outline-dark btn-sm" type="submit"><i class="bi bi-arrow-repeat"></i> Choose another trip</button>
-                            </form>
+                                <div>
+                                    <a href="<?= url('passenger/booking_confirmation.php?booking_id=' . (int)$b['booking_id']) ?>" class="btn btn-outline-primary btn-sm rounded-pill px-3" style="font-size: 0.78rem;">
+                                        View Details <i class="bi bi-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                    <?php elseif ($notification['cancellation_choice'] === 'REBOOK_REQUESTED'): ?>
-                        <a class="btn btn-primary btn-sm" href="<?= url('passenger/dashboard.php') ?>">View available trips</a>
-                    <?php elseif ($notification['cancellation_choice'] === 'REFUND_REQUESTED'): ?>
-                        <?php if ($notification['payment_status'] === 'REFUNDED'): ?>
-                            <p class="small text-muted mb-0">Your refund was sent as <?= e(online_payment_option_label($notification['refund_payment_option'])) ?>. Transfer reference: <?= e($notification['refund_transfer_reference'] ?: 'Not provided') ?></p>
-                        <?php elseif (!$needsRefundDetails): ?>
-                            <p class="small text-muted mb-0">The administrator will send the online transfer to <?= e(online_payment_option_label($notification['refund_payment_option'])) ?> account <?= e($notification['refund_account_number']) ?>.</p>
-                        <?php endif; ?>
-                    <?php endif; ?>
-                </article>
+                    </div>
+                </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
