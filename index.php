@@ -129,13 +129,13 @@ require __DIR__ . '/includes/header.php';
         <div class="text-center text-white mb-4">
             <div class="hero-badge mb-3 d-inline-flex align-items-center gap-2">
                 <span class="badge-dot"></span>
-                <span>Official Philippine Bus Booking Portal</span>
+                <span>Official Zamboanga &amp; Region 9 Bus Booking Portal</span>
             </div>
             <h1 class="hero-title mb-2">
                 Fast &amp; Reliable Intercity Bus Travel
             </h1>
             <p class="hero-sub mb-0 text-white-50 mx-auto" style="max-width: 650px;">
-                Sign in or register below to reserve your seats, select coach layouts, and download instant boarding passes.
+                Sign in or register below to reserve your seats, select coach layouts, and download instant boarding passes across Zamboanga City and Western Mindanao.
             </p>
         </div>
 
@@ -337,7 +337,7 @@ require __DIR__ . '/includes/header.php';
         <div>
             <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">Available Network</span>
             <h2 class="h3 mb-1 fw-bold">Routes We Serve</h2>
-            <p class="text-muted mb-0 small">Explore our intercity network across Luzon, Visayas, and Mindanao with real-time seat availability.</p>
+            <p class="text-muted mb-0 small">Explore our regional intercity routes connecting Zamboanga City, Zamboanga Peninsula, and Mindanao hubs with real-time seat availability.</p>
         </div>
         <a href="#hero-portal" class="btn btn-outline-dark btn-sm d-none d-md-inline-flex align-items-center gap-1">
             <i class="bi bi-arrow-up-circle"></i> Back to Top

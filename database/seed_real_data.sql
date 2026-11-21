@@ -16,6 +16,14 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Current Database: `bus_ticketing_db`
+--
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `bus_ticketing_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
+
+USE `bus_ticketing_db`;
+
+--
 -- Table structure for table `booking_seats`
 --
 
@@ -40,7 +48,7 @@ CREATE TABLE `booking_seats` (
   CONSTRAINT `fk_bs_booking` FOREIGN KEY (`booking_id`, `trip_id`) REFERENCES `bookings` (`booking_id`, `trip_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_bs_seat` CHECK (`seat_number` >= 1),
   CONSTRAINT `chk_bs_price` CHECK (`price` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -130,7 +138,7 @@ CREATE TABLE `bookings` (
   KEY `idx_bookings_trip` (`trip_id`),
   CONSTRAINT `fk_bookings_trip` FOREIGN KEY (`trip_id`) REFERENCES `trips` (`trip_id`) ON UPDATE CASCADE,
   CONSTRAINT `fk_bookings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -167,7 +175,7 @@ CREATE TABLE `buses` (
 
 LOCK TABLES `buses` WRITE;
 /*!40000 ALTER TABLE `buses` DISABLE KEYS */;
-INSERT INTO `buses` VALUES (1,'PH-8012','Standard Regular Coach',40,'ACTIVE'),(2,'PH-5240','Deluxe / First Class Coach',32,'ACTIVE'),(3,'PH-3198','Ordinary Bus (Non-Aircon)',45,'ACTIVE'),(4,'PH-9421','Double-Decker Bus',60,'ACTIVE'),(5,'PH-7105','Standard Regular Coach',40,'ACTIVE'),(6,'PH-6382','Deluxe / First Class Coach',32,'ACTIVE');
+INSERT INTO `buses` VALUES (1,'ZC-8012','Deluxe / First Class Coach',32,'ACTIVE'),(2,'ZC-5240','Standard Regular Coach',40,'ACTIVE'),(3,'ZC-3198','Ordinary Bus (Non-Aircon)',45,'ACTIVE'),(4,'ZC-9421','Super Deluxe Express',32,'ACTIVE'),(5,'ZC-7105','Standard Regular Coach',40,'ACTIVE'),(6,'ZC-6382','Deluxe / First Class Coach',32,'ACTIVE');
 /*!40000 ALTER TABLE `buses` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -197,7 +205,7 @@ CREATE TABLE `drivers` (
 
 LOCK TABLES `drivers` WRITE;
 /*!40000 ALTER TABLE `drivers` DISABLE KEYS */;
-INSERT INTO `drivers` VALUES (1,'Juan','Dela Cruz','N02-18-045921','09170000101','2030-12-31','ACTIVE'),(2,'Maria','Santos','N03-19-012847','09170000102','2030-12-31','ACTIVE'),(3,'Pedro','Reyes','N01-16-098234','09170000103','2030-12-31','ACTIVE'),(4,'Ana','Garcia','N04-20-034190','09170000104','2030-12-31','ACTIVE'),(5,'Eduardo','Mendoza','N01-17-062831','09170000105','2030-12-31','ACTIVE'),(6,'Ramon','Bautista','N03-21-075412','09170000106','2030-12-31','ACTIVE');
+INSERT INTO `drivers` VALUES (1,'Al-Rashid','Hadji','N09-18-045921','09170000101','2030-12-31','ACTIVE'),(2,'Mohammad','Hassan','N09-19-012847','09170000102','2030-12-31','ACTIVE'),(3,'Danilo','Santos','N09-16-098234','09170000103','2030-12-31','ACTIVE'),(4,'Eduardo','Mendoza','N09-20-034190','09170000104','2030-12-31','ACTIVE'),(5,'Ramon','Bautista','N09-17-062831','09170000105','2030-12-31','ACTIVE'),(6,'Abdul','Usman','N09-21-075412','09170000106','2030-12-31','ACTIVE');
 /*!40000 ALTER TABLE `drivers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -325,7 +333,7 @@ CREATE TABLE `routes` (
 
 LOCK TABLES `routes` WRITE;
 /*!40000 ALTER TABLE `routes` DISABLE KEYS */;
-INSERT INTO `routes` VALUES (1,'Manila','Baguio City',250.00,'ACTIVE'),(2,'Baguio City','Manila',250.00,'ACTIVE'),(3,'Davao City','General Santos City',150.00,'ACTIVE'),(4,'General Santos City','Davao City',150.00,'ACTIVE'),(5,'Cebu City','Dumaguete City',170.00,'ACTIVE'),(6,'Dumaguete City','Cebu City',170.00,'ACTIVE'),(7,'Pagadian City','Zamboanga City',190.00,'ACTIVE'),(8,'Zamboanga City','Pagadian City',190.00,'ACTIVE'),(9,'Manila','Batangas Pier',110.00,'ACTIVE'),(10,'Batangas Pier','Manila',110.00,'ACTIVE');
+INSERT INTO `routes` VALUES (1,'Zamboanga City','Pagadian City',280.00,'ACTIVE'),(2,'Pagadian City','Zamboanga City',280.00,'ACTIVE'),(3,'Zamboanga City','Dipolog City',315.00,'ACTIVE'),(4,'Dipolog City','Zamboanga City',315.00,'ACTIVE'),(5,'Zamboanga City','Ipil',140.00,'ACTIVE'),(6,'Ipil','Zamboanga City',140.00,'ACTIVE'),(7,'Pagadian City','Dipolog City',145.00,'ACTIVE'),(8,'Dipolog City','Pagadian City',145.00,'ACTIVE'),(9,'Zamboanga City','Cagayan de Oro',490.00,'ACTIVE'),(10,'Cagayan de Oro','Zamboanga City',490.00,'ACTIVE');
 /*!40000 ALTER TABLE `routes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -411,7 +419,7 @@ CREATE TABLE `trips` (
   CONSTRAINT `fk_trips_route` FOREIGN KEY (`route_id`) REFERENCES `routes` (`route_id`) ON UPDATE CASCADE,
   CONSTRAINT `chk_trips_times` CHECK (`arrival_time` > `departure_time`),
   CONSTRAINT `chk_trips_fare` CHECK (`fare` >= 0)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -420,7 +428,7 @@ CREATE TABLE `trips` (
 
 LOCK TABLES `trips` WRITE;
 /*!40000 ALTER TABLE `trips` DISABLE KEYS */;
-INSERT INTO `trips` VALUES (1,1,1,1,'2026-11-22 06:00:00','2026-11-22 11:30:00',750.00,'SCHEDULED'),(2,2,2,1,'2026-11-22 13:00:00','2026-11-22 18:30:00',850.00,'SCHEDULED'),(3,1,1,2,'2026-11-23 07:00:00','2026-11-23 12:30:00',750.00,'SCHEDULED'),(4,2,2,2,'2026-11-23 14:00:00','2026-11-23 19:30:00',850.00,'SCHEDULED'),(5,3,3,3,'2026-11-22 07:00:00','2026-11-22 10:30:00',450.00,'SCHEDULED'),(6,5,5,3,'2026-11-22 14:00:00','2026-11-22 17:30:00',450.00,'SCHEDULED'),(7,3,3,4,'2026-11-23 08:00:00','2026-11-23 11:30:00',450.00,'SCHEDULED'),(8,4,4,5,'2026-11-22 06:30:00','2026-11-22 11:30:00',650.00,'SCHEDULED'),(9,6,6,5,'2026-11-22 13:30:00','2026-11-22 18:30:00',700.00,'SCHEDULED'),(10,4,4,6,'2026-11-23 07:00:00','2026-11-23 12:00:00',650.00,'SCHEDULED'),(11,5,5,7,'2026-11-23 06:00:00','2026-11-23 12:00:00',600.00,'SCHEDULED'),(12,5,5,8,'2026-11-24 07:00:00','2026-11-24 13:00:00',600.00,'SCHEDULED'),(13,6,6,9,'2026-11-23 06:00:00','2026-11-23 08:30:00',350.00,'SCHEDULED'),(14,6,6,10,'2026-11-23 11:00:00','2026-11-23 13:30:00',350.00,'SCHEDULED');
+INSERT INTO `trips` VALUES (1,1,1,1,'2026-11-22 05:00:00','2026-11-22 11:00:00',650.00,'SCHEDULED'),(2,1,1,2,'2026-11-22 13:00:00','2026-11-22 19:00:00',650.00,'SCHEDULED'),(3,1,1,1,'2026-11-23 06:00:00','2026-11-23 12:00:00',650.00,'SCHEDULED'),(4,1,1,2,'2026-11-23 14:00:00','2026-11-23 20:00:00',650.00,'SCHEDULED'),(5,2,2,5,'2026-11-22 06:00:00','2026-11-22 09:30:00',350.00,'SCHEDULED'),(6,2,2,6,'2026-11-22 11:00:00','2026-11-22 14:30:00',350.00,'SCHEDULED'),(7,2,2,5,'2026-11-22 16:00:00','2026-11-22 19:30:00',350.00,'SCHEDULED'),(8,2,2,6,'2026-11-23 07:00:00','2026-11-23 10:30:00',350.00,'SCHEDULED'),(9,3,3,7,'2026-11-22 07:00:00','2026-11-22 10:30:00',320.00,'SCHEDULED'),(10,3,3,8,'2026-11-22 13:00:00','2026-11-22 16:30:00',320.00,'SCHEDULED'),(11,3,3,7,'2026-11-23 08:00:00','2026-11-23 11:30:00',320.00,'SCHEDULED'),(12,4,4,3,'2026-11-22 06:00:00','2026-11-22 13:30:00',780.00,'SCHEDULED'),(13,4,4,4,'2026-11-23 06:00:00','2026-11-23 13:30:00',780.00,'SCHEDULED'),(14,5,5,1,'2026-11-22 08:30:00','2026-11-22 14:30:00',600.00,'SCHEDULED'),(15,5,5,2,'2026-11-22 16:00:00','2026-11-22 22:00:00',600.00,'SCHEDULED'),(16,5,5,1,'2026-11-23 09:30:00','2026-11-23 15:30:00',600.00,'SCHEDULED'),(17,6,6,9,'2026-11-22 04:00:00','2026-11-22 16:00:00',1150.00,'SCHEDULED'),(18,6,6,10,'2026-11-23 05:00:00','2026-11-23 17:00:00',1150.00,'SCHEDULED');
 /*!40000 ALTER TABLE `trips` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -502,7 +510,7 @@ CREATE TABLE `user_otps` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`otp_id`),
   KEY `idx_user_otps_lookup` (`email`,`purpose`,`is_used`,`expires_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -511,7 +519,7 @@ CREATE TABLE `user_otps` (
 
 LOCK TABLES `user_otps` WRITE;
 /*!40000 ALTER TABLE `user_otps` DISABLE KEYS */;
-INSERT INTO `user_otps` VALUES (1,2,'velardejane67@gmail.com','969271','LOGIN',NULL,'2026-11-21 11:55:54',1,'2026-11-21 03:45:54'),(2,1,'admin@busticket.ph','306910','LOGIN',NULL,'2026-11-21 11:59:02',1,'2026-11-21 03:49:02'),(3,2,'velardejane67@gmail.com','325546','LOGIN',NULL,'2026-11-21 12:26:10',1,'2026-11-21 04:16:10');
+INSERT INTO `user_otps` VALUES (1,2,'velardejane67@gmail.com','969271','LOGIN',NULL,'2026-11-21 11:55:54',1,'2026-11-21 03:45:54'),(2,1,'admin@busticket.ph','306910','LOGIN',NULL,'2026-11-21 11:59:02',1,'2026-11-21 03:49:02'),(3,2,'velardejane67@gmail.com','325546','LOGIN',NULL,'2026-11-21 12:26:10',1,'2026-11-21 04:16:10'),(4,2,'velardejane67@gmail.com','409180','PAYMENT',3,'2026-11-21 12:34:02',1,'2026-11-21 04:24:02'),(5,NULL,'janevelarde16@gmail.com','420542','REGISTRATION',NULL,'2026-11-21 12:40:39',1,'2026-11-21 04:30:39');
 /*!40000 ALTER TABLE `user_otps` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -534,7 +542,7 @@ CREATE TABLE `users` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `uq_users_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -543,7 +551,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'System','Administrator','admin@busticket.ph','09170000001','$2y$10$UeFd4fQXrHvcI/6tuETWKeUdmJ.NvSQVWwNBgEqVYwHuExb4Mze4m','SUPER_ADMIN','ACTIVE','2026-11-21 03:42:44'),(2,'mimai','mayormita','velardejane67@gmail.com','09940138423','$2y$10$5vpmaIhDNDrTwJOVISm8eu5cm72lY4XRNIfBS3swqqLUTdhqBN6cG','PASSENGER','ACTIVE','2026-11-21 03:43:25');
+INSERT INTO `users` VALUES (1,'System','Administrator','admin@busticket.ph','09170000001','$2y$10$UeFd4fQXrHvcI/6tuETWKeUdmJ.NvSQVWwNBgEqVYwHuExb4Mze4m','SUPER_ADMIN','ACTIVE','2026-11-21 03:42:44'),(2,'mimai','mayormita','velardejane67@gmail.com','09940138423','$2y$10$5vpmaIhDNDrTwJOVISm8eu5cm72lY4XRNIfBS3swqqLUTdhqBN6cG','PASSENGER','ACTIVE','2026-11-21 03:43:25'),(3,'john','baptist','janevelarde16@gmail.com','09777953906','$2y$10$nAiCtrQdhd2FO/JFKRUxH.RzlA59tlCDRgcZXqCGRz0cjYrB30Qxa','PASSENGER','ACTIVE','2026-11-21 04:30:47'),(5,'Kael','kayer','admin@123.com','09978767861','$2y$10$//z8nJJJlDP.qb.C87aSZubHUyz2gJrcL5n7lCQzo1cwqKUFbIX0m','ADMIN','ACTIVE','2026-11-21 06:15:41');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -556,4 +564,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-21 12:20:55
+-- Dump completed on 2026-11-21 14:25:21
