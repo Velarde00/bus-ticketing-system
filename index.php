@@ -290,6 +290,47 @@ require __DIR__ . '/includes/header.php';
     </div>
 </section>
 
+<!-- How It Works Section -->
+<section class="how-it-works-section py-5 bg-white border-top border-bottom" id="how-it-works">
+    <div class="container">
+        <div class="text-center max-w-600 mx-auto mb-5">
+            <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">Simple 4-Step Process</span>
+            <h2 class="h3 fw-bold">How It Works</h2>
+            <p class="text-muted small mb-0">From search to boarding, booking your next journey takes less than two minutes.</p>
+        </div>
+        <div class="row g-4 text-center">
+            <div class="col-md-3">
+                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
+                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">1</div>
+                    <h3 class="h6 fw-bold mb-2 text-dark">1. Search Trips</h3>
+                    <p class="text-muted small mb-0">Type your departure and destination terminal to find available buses.</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
+                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">2</div>
+                    <h3 class="h6 fw-bold mb-2 text-dark">2. Choose Seats</h3>
+                    <p class="text-muted small mb-0">Pick your favorite seat (window, aisle, front) on our real-time interactive coach layout.</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
+                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">3</div>
+                    <h3 class="h6 fw-bold mb-2 text-dark">3. Pay &amp; Confirm</h3>
+                    <p class="text-muted small mb-0">Pay online (GCash, Maya, Card) or choose terminal walk-in.</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
+                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">4</div>
+                    <h3 class="h6 fw-bold mb-2 text-dark">4. Board &amp; Travel</h3>
+                    <p class="text-muted small mb-0">Show your digital e-ticket or printable QR boarding pass upon boarding at the terminal.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- Routes We Serve Section -->
 <section class="container py-5" id="routes">
     <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
