@@ -495,14 +495,14 @@ CREATE TABLE `user_otps` (
   `user_id` int(10) unsigned DEFAULT NULL,
   `email` varchar(100) NOT NULL,
   `otp_code` varchar(10) NOT NULL,
-  `purpose` enum('LOGIN','PAYMENT') NOT NULL,
+  `purpose` enum('LOGIN','PAYMENT','REGISTRATION') NOT NULL,
   `reference_id` int(10) unsigned DEFAULT NULL,
   `expires_at` datetime NOT NULL,
   `is_used` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`otp_id`),
   KEY `idx_user_otps_lookup` (`email`,`purpose`,`is_used`,`expires_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -511,7 +511,7 @@ CREATE TABLE `user_otps` (
 
 LOCK TABLES `user_otps` WRITE;
 /*!40000 ALTER TABLE `user_otps` DISABLE KEYS */;
-INSERT INTO `user_otps` VALUES (1,2,'velardejane67@gmail.com','969271','LOGIN',NULL,'2026-11-21 11:55:54',1,'2026-11-21 03:45:54'),(2,1,'admin@busticket.ph','306910','LOGIN',NULL,'2026-11-21 11:59:02',1,'2026-11-21 03:49:02');
+INSERT INTO `user_otps` VALUES (1,2,'velardejane67@gmail.com','969271','LOGIN',NULL,'2026-11-21 11:55:54',1,'2026-11-21 03:45:54'),(2,1,'admin@busticket.ph','306910','LOGIN',NULL,'2026-11-21 11:59:02',1,'2026-11-21 03:49:02'),(3,2,'velardejane67@gmail.com','325546','LOGIN',NULL,'2026-11-21 12:26:10',1,'2026-11-21 04:16:10');
 /*!40000 ALTER TABLE `user_otps` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -556,4 +556,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-21 12:12:07
+-- Dump completed on 2026-11-21 12:20:55

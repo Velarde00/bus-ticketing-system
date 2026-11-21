@@ -51,24 +51,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errors) {
-            try {
-                $insert = $pdo->prepare(
-                    "INSERT INTO users (first_name, last_name, email, phone_number, password_hash, role)
-                     VALUES (:first, :last, :email, :phone, :hash, 'PASSENGER')"
-                );
-                $insert->execute([
-                    ':first' => $first,
-                    ':last'  => $last,
-                    ':email' => $email,
-                    ':phone' => $phone,
-                    ':hash'  => password_hash($password, PASSWORD_DEFAULT),
-                ]);
-                set_flash('success', 'Account created successfully. You can log in now.');
-                redirect('auth/login.php');
-            } catch (PDOException $e) {
-                error_log($e->getMessage());
-                $errors[] = 'We could not create your account. Please try again.';
-            }
+            $otpInfo = create_and_dispatch_otp($pdo, $email, $phone, 'REGISTRATION');
+
+            $_SESSION['pending_registration'] = [
+                'first_name'    => $first,
+                'last_name'     => $last,
+                'email'         => $email,
+                'phone_number'  => $phone,
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'masked_email'  => $otpInfo['masked_email'],
+                'masked_phone'  => $otpInfo['masked_phone'],
+                'code'          => $otpInfo['code'],
+                'expires_at'    => $otpInfo['expires_at'],
+            ];
+
+            set_flash('info', 'We sent a 6-digit verification code to your email and phone.');
+            redirect('auth/verify_otp.php');
         }
     }
 }
