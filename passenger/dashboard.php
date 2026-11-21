@@ -231,21 +231,24 @@ require __DIR__ . '/../includes/header.php';
                     $depTs = strtotime($t['departure_time']);
                     $arrTs = strtotime($t['arrival_time']);
                     $duration = $arrTs > $depTs ? round(($arrTs - $depTs) / 3600, 1) : null;
+                    $busImg = url(bus_type_image($t['bus_type'] ?? ''));
                 ?>
                 <div class="col-lg-6">
-                    <div class="bg-white p-3 p-md-4 rounded-4 border shadow-sm h-100 d-flex flex-column justify-content-between">
-                        <div>
+                    <div class="passenger-trip-card rounded-4 border shadow-sm h-100 d-flex flex-column justify-content-between p-3 p-md-4 position-relative overflow-hidden"
+                         style="background-image: linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.91) 60%, rgba(248,250,252,0.85) 100%), url('<?= e($busImg) ?>');">
+                        <div class="trip-card-bus-watermark" style="background-image: url('<?= e($busImg) ?>');"></div>
+                        <div class="position-relative z-1">
                             <!-- Header pill: Date & Bus -->
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
                                         <i class="bi bi-calendar-event me-1"></i> <?= e(date('l, F j, Y', $depTs)) ?>
                                     </span>
-                                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
+                                    <span class="badge bg-white text-dark border shadow-xs px-2 py-1 rounded-pill small">
                                         <i class="bi bi-bus-front me-1 text-primary"></i> <?= e($t['bus_type']) ?>
                                     </span>
                                 </div>
-                                <span class="badge bg-light text-muted border small font-monospace">Bus #<?= e($t['bus_number']) ?></span>
+                                <span class="badge bg-white text-muted border small font-monospace shadow-xs">Bus #<?= e($t['bus_number']) ?></span>
                             </div>
 
                             <!-- Route Visual -->
@@ -253,7 +256,7 @@ require __DIR__ . '/../includes/header.php';
                                 <div>
                                     <div class="h4 fw-bold text-dark mb-0"><?= e(fmt_time($t['departure_time'])) ?></div>
                                     <span class="text-muted small fw-semibold text-truncate d-block" style="max-width: 140px;"><?= e($t['origin']) ?></span>
-                                    <span class="badge bg-light text-muted border small mt-1">Terminal</span>
+                                    <span class="badge bg-white text-muted border small mt-1 shadow-xs">Terminal</span>
                                 </div>
 
                                 <div class="flex-grow-1 px-3 text-center">
@@ -270,13 +273,13 @@ require __DIR__ . '/../includes/header.php';
                                 <div class="text-end">
                                     <div class="h4 fw-bold text-dark mb-0"><?= e(fmt_time($t['arrival_time'])) ?></div>
                                     <span class="text-muted small fw-semibold text-truncate d-block" style="max-width: 140px;"><?= e($t['destination']) ?></span>
-                                    <span class="badge bg-light text-muted border small mt-1">Arrival</span>
+                                    <span class="badge bg-white text-muted border small mt-1 shadow-xs">Arrival</span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card Footer: Seats, Fare, Action Button -->
-                        <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-2 gap-2">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-2 gap-2 position-relative z-1">
                             <div>
                                 <?php if ($left <= 5): ?>
                                     <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill small">
