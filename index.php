@@ -290,213 +290,16 @@ require __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<!-- Scheduled Available Buses Timetable Section -->
-<section class="container py-5" id="schedules">
-    <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
-        <div>
-            <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">
-                <i class="bi bi-calendar2-week-fill me-1"></i> Live Departure Timetable
-            </span>
-            <h2 class="h3 mb-1 fw-bold">Scheduled Available Buses</h2>
-            <p class="text-muted mb-0 small">Passenger departure timetable: view departure dates, times, and available seats on all upcoming runs.</p>
-        </div>
-        <a href="#search" class="btn btn-outline-dark btn-sm rounded-pill px-3 d-none d-md-inline-flex align-items-center gap-1">
-            <i class="bi bi-search me-1"></i> Search by Date
-        </a>
-    </div>
-
-    <?php if (!$upcomingTrips): ?>
-        <div class="panel p-5 bg-white rounded-4 border shadow-sm text-center">
-            <i class="bi bi-calendar-x fs-1 text-muted mb-2"></i>
-            <h3 class="h5 fw-bold mb-1">No Upcoming Trips Scheduled</h3>
-            <p class="text-muted small mb-0">Check back later or contact terminal administration for new schedule announcements.</p>
-        </div>
-    <?php else: ?>
-        <div class="row g-3">
-            <?php foreach ($upcomingTrips as $t): ?>
-                <?php
-                    $left = max(0, (int)$t['available_seats']);
-                    $depTs = strtotime($t['departure_time']);
-                    $arrTs = strtotime($t['arrival_time']);
-                    $duration = $arrTs > $depTs ? round(($arrTs - $depTs) / 3600, 1) : null;
-                ?>
-                <div class="col-lg-6">
-                    <div class="schedule-card bg-white p-3 p-md-4 rounded-4 border shadow-sm h-100 d-flex flex-column justify-content-between">
-                        <div>
-                            <!-- Top bar: Date pill & Bus type -->
-                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
-                                        <i class="bi bi-calendar-event me-1"></i> <?= e(date('l, F j, Y', $depTs)) ?>
-                                    </span>
-                                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
-                                        <i class="bi bi-bus-front me-1 text-primary"></i> <?= e($t['bus_type']) ?>
-                                    </span>
-                                </div>
-                                <span class="badge bg-light text-muted border small font-monospace">Bus #<?= e($t['bus_number']) ?></span>
-                            </div>
-
-                            <!-- Route & Time visual -->
-                            <div class="d-flex align-items-center justify-content-between my-3">
-                                <div>
-                                    <div class="h4 fw-bold text-dark mb-0"><?= e(fmt_time($t['departure_time'])) ?></div>
-                                    <span class="text-muted small fw-semibold text-truncate d-block" style="max-width: 140px;"><?= e($t['origin']) ?></span>
-                                    <span class="badge bg-light text-muted border small mt-1">Terminal</span>
-                                </div>
-
-                                <div class="flex-grow-1 px-3 text-center">
-                                    <?php if ($duration): ?>
-                                        <span class="small text-muted d-block mb-1"><?= $duration ?> hrs</span>
-                                    <?php endif; ?>
-                                    <div class="position-relative d-flex align-items-center justify-content-center">
-                                        <div style="height: 2px; width: 100%; background: #CBD5E1;"></div>
-                                        <i class="bi bi-arrow-right-circle-fill text-primary position-absolute bg-white px-1 fs-5"></i>
-                                    </div>
-                                    <span class="small text-muted d-block mt-1"><?= e(number_format((float)$t['distance_km'])) ?> km</span>
-                                </div>
-
-                                <div class="text-end">
-                                    <div class="h4 fw-bold text-dark mb-0"><?= e(fmt_time($t['arrival_time'])) ?></div>
-                                    <span class="text-muted small fw-semibold text-truncate d-block" style="max-width: 140px;"><?= e($t['destination']) ?></span>
-                                    <span class="badge bg-light text-muted border small mt-1">Arrival</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card Footer: Seats, Fare, Action Button -->
-                        <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-2 gap-2">
-                            <div>
-                                <?php if ($left <= 5): ?>
-                                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill small">
-                                        <i class="bi bi-fire me-1"></i> Only <?= $left ?> seats left
-                                    </span>
-                                <?php else: ?>
-                                    <span class="badge bg-success-subtle text-success px-2 py-1 rounded-pill small">
-                                        <i class="bi bi-check2-circle me-1"></i> <?= $left ?> seats available
-                                    </span>
-                                <?php endif; ?>
-                                <div class="fw-bold fs-5 text-primary mt-1"><?= money($t['fare']) ?> <span class="small fw-normal text-muted">/ regular</span></div>
-                                <div class="small text-success mt-1" style="font-size: 0.75rem;">
-                                    <i class="bi bi-tag-fill me-1"></i><?= money($t['fare'] * 0.80) ?> (20% off for Student/Senior/PWD)
-                                </div>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <a href="<?= url('index.php') ?>?origin=<?= urlencode($t['origin']) ?>&amp;destination=<?= urlencode($t['destination']) ?>&amp;date=<?= e(date('Y-m-d', $depTs)) ?>#search"
-                                   class="btn btn-outline-dark btn-sm rounded-pill px-3">
-                                    <i class="bi bi-calendar-check me-1"></i> View Route
-                                </a>
-                                <?php if ($left > 0): ?>
-                                    <a href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$t['trip_id']) ?>" class="btn btn-primary btn-sm rounded-pill shadow-sm px-3 d-inline-flex align-items-center gap-1">
-                                        <i class="bi bi-ticket-perforated"></i> Select Seats
-                                    </a>
-                                <?php else: ?>
-                                    <button class="btn btn-secondary btn-sm rounded-pill px-3" disabled>Sold out</button>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-</section>
-
-<!-- Feature Badges Section -->
-<section class="features-section py-5">
-    <div class="container">
-        <div class="row g-4">
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card h-100">
-                    <div class="feature-icon bg-primary-subtle text-primary">
-                        <i class="bi bi-grid-3x3-gap-fill"></i>
-                    </div>
-                    <h3 class="h6 fw-bold mb-2">Pick Your Seat</h3>
-                    <p class="text-muted small mb-0">Select your preferred window, aisle, or front seat directly on our real-time interactive bus map.</p>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card h-100">
-                    <div class="feature-icon bg-warning-subtle text-warning">
-                        <i class="bi bi-ticket-detailed-fill"></i>
-                    </div>
-                    <h3 class="h6 fw-bold mb-2">Instant e-Ticket</h3>
-                    <p class="text-muted small mb-0">Get your ticket reference immediately. Show it on your phone or print a physical boarding pass.</p>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card h-100">
-                    <div class="feature-icon bg-success-subtle text-success">
-                        <i class="bi bi-shield-check"></i>
-                    </div>
-                    <h3 class="h6 fw-bold mb-2">Verified Drivers</h3>
-                    <p class="text-muted small mb-0">All trips are operated by licensed drivers and registered modern coaches with regular safety checks.</p>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3">
-                <div class="feature-card h-100">
-                    <div class="feature-icon bg-info-subtle text-info">
-                        <i class="bi bi-wallet2"></i>
-                    </div>
-                    <h3 class="h6 fw-bold mb-2">Flexible Payment</h3>
-                    <p class="text-muted small mb-0">Pay conveniently at the terminal counter with cash, or choose GCash, Maya, and card options.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- How It Works Section -->
-<section class="how-it-works-section py-5 bg-white border-top border-bottom" id="how-it-works">
-    <div class="container">
-        <div class="text-center max-w-600 mx-auto mb-5">
-            <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">Simple 4-Step Process</span>
-            <h2 class="h3 fw-bold">How It Works</h2>
-            <p class="text-muted small mb-0">From search to boarding, booking your next journey takes less than two minutes.</p>
-        </div>
-        <div class="row g-4 text-center">
-            <div class="col-md-3">
-                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
-                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">1</div>
-                    <h3 class="h6 fw-bold mb-2 text-dark">1. Search Trips</h3>
-                    <p class="text-muted small mb-0">Type your departure and destination terminal to find available buses.</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
-                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">2</div>
-                    <h3 class="h6 fw-bold mb-2 text-dark">2. Choose Seats</h3>
-                    <p class="text-muted small mb-0">Pick your favorite seat (window, aisle, front) on our real-time interactive coach layout.</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
-                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">3</div>
-                    <h3 class="h6 fw-bold mb-2 text-dark">3. Pay &amp; Confirm</h3>
-                    <p class="text-muted small mb-0">Pay online (GCash, Maya, Card) or choose terminal walk-in.</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="step-card p-3 p-md-4 rounded-4 bg-light border shadow-sm h-100">
-                    <div class="step-number mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm" style="width: 48px; height: 48px;">4</div>
-                    <h3 class="h6 fw-bold mb-2 text-dark">4. Board &amp; Travel</h3>
-                    <p class="text-muted small mb-0">Show your digital e-ticket or printable QR boarding pass upon boarding at the terminal.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
 <!-- Routes We Serve Section -->
 <section class="container py-5" id="routes">
-<section class="container py-5">
     <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
         <div>
             <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">Available Network</span>
             <h2 class="h3 mb-1 fw-bold">Routes We Serve</h2>
-            <p class="text-muted mb-0 small">Select any route to automatically fill origin, destination, and the scheduled departure date.</p>
+            <p class="text-muted mb-0 small">Explore our intercity network across Luzon, Visayas, and Mindanao with real-time seat availability.</p>
         </div>
-        <a href="#search" class="btn btn-outline-dark btn-sm d-none d-md-inline-flex align-items-center gap-1">
-            <i class="bi bi-arrow-up-circle"></i> Back to search
+        <a href="#hero-portal" class="btn btn-outline-dark btn-sm d-none d-md-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-up-circle"></i> Back to Top
         </a>
     </div>
 
@@ -507,8 +310,7 @@ require __DIR__ . '/includes/header.php';
             ?>
             <div class="col-md-6 col-xl-4">
                 <a class="route-card-modern"
-                   href="<?= url('index.php') ?>?origin=<?= urlencode($r['origin']) ?>&amp;destination=<?= urlencode($r['destination']) ?>&amp;date=<?= e($nextDateParam) ?>#search"
-                   onclick="fillSearch('<?= e(addslashes($r['origin'])) ?>', '<?= e(addslashes($r['destination'])) ?>', '<?= e($nextDateParam) ?>')">
+                   href="<?= is_logged_in() ? url('passenger/trip_results.php?origin=' . urlencode($r['origin']) . '&destination=' . urlencode($r['destination']) . '&date=' . e($nextDateParam)) : url('index.php#hero-portal') ?>">
                     <div class="route-card-header d-flex justify-content-between align-items-center mb-2">
                         <span class="route-badge-km"><i class="bi bi-signpost-split me-1"></i><?= e(number_format((float)$r['distance_km'])) ?> km</span>
                         <?php if ($r['upcoming_trips'] > 0): ?>
