@@ -40,7 +40,7 @@ CREATE TABLE `booking_seats` (
   CONSTRAINT `fk_bs_booking` FOREIGN KEY (`booking_id`, `trip_id`) REFERENCES `bookings` (`booking_id`, `trip_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `chk_bs_seat` CHECK (`seat_number` >= 1),
   CONSTRAINT `chk_bs_price` CHECK (`price` >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -129,7 +129,7 @@ CREATE TABLE `bookings` (
   KEY `idx_bookings_trip` (`trip_id`),
   CONSTRAINT `fk_bookings_trip` FOREIGN KEY (`trip_id`) REFERENCES `trips` (`trip_id`) ON UPDATE CASCADE,
   CONSTRAINT `fk_bookings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -201,6 +201,35 @@ INSERT INTO `drivers` VALUES (1,'Juan','Dela Cruz','N02-18-045921','09170000101'
 UNLOCK TABLES;
 
 --
+-- Table structure for table `manual_payment_instructions`
+--
+
+DROP TABLE IF EXISTS `manual_payment_instructions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `manual_payment_instructions` (
+  `payment_option` enum('GCASH','MAYA','MARIBANK','BANK_TRANSFER') NOT NULL,
+  `account_name` varchar(120) NOT NULL DEFAULT '',
+  `account_number` varchar(120) NOT NULL DEFAULT '',
+  `instructions` text DEFAULT NULL,
+  `qr_image_path` varchar(255) DEFAULT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT 0,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`payment_option`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `manual_payment_instructions`
+--
+
+LOCK TABLES `manual_payment_instructions` WRITE;
+/*!40000 ALTER TABLE `manual_payment_instructions` DISABLE KEYS */;
+INSERT INTO `manual_payment_instructions` VALUES ('GCASH','','',NULL,NULL,0,'2026-11-21 03:48:53'),('MAYA','','',NULL,NULL,0,'2026-11-21 03:48:53'),('MARIBANK','','',NULL,NULL,0,'2026-11-21 03:48:53'),('BANK_TRANSFER','','',NULL,NULL,0,'2026-11-21 03:48:53');
+/*!40000 ALTER TABLE `manual_payment_instructions` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `payments`
 --
 
@@ -211,9 +240,17 @@ CREATE TABLE `payments` (
   `payment_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `booking_id` int(10) unsigned NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `payment_method` enum('CASH','E_WALLET','CARD') NOT NULL,
-  `payment_status` enum('PENDING','PAID','FAILED','REFUNDED') NOT NULL DEFAULT 'PENDING',
+  `payment_method` enum('CASH','E_WALLET','CARD','ONLINE','MANUAL_TRANSFER') NOT NULL,
+  `online_payment_option` enum('GCASH','MAYA','MARIBANK','BANK_TRANSFER') DEFAULT NULL,
+  `payment_status` enum('PENDING','PAID','FAILED','REFUND_REQUESTED','REFUNDED','CANCELLED') NOT NULL DEFAULT 'PENDING',
   `payment_date` datetime NOT NULL DEFAULT current_timestamp(),
+  `transfer_reference` varchar(100) DEFAULT NULL,
+  `transfer_submitted_at` datetime DEFAULT NULL,
+  `refund_payment_option` enum('GCASH','MAYA','MARIBANK','BANK_TRANSFER') DEFAULT NULL,
+  `refund_account_name` varchar(120) DEFAULT NULL,
+  `refund_account_number` varchar(120) DEFAULT NULL,
+  `refund_transfer_reference` varchar(100) DEFAULT NULL,
+  `refund_processed_at` datetime DEFAULT NULL,
   PRIMARY KEY (`payment_id`),
   KEY `idx_payments_booking` (`booking_id`),
   KEY `idx_payments_date` (`payment_date`),
@@ -434,7 +471,7 @@ CREATE TABLE `user_otps` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`otp_id`),
   KEY `idx_user_otps_lookup` (`email`,`purpose`,`is_used`,`expires_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -443,6 +480,7 @@ CREATE TABLE `user_otps` (
 
 LOCK TABLES `user_otps` WRITE;
 /*!40000 ALTER TABLE `user_otps` DISABLE KEYS */;
+INSERT INTO `user_otps` VALUES (1,2,'velardejane67@gmail.com','969271','LOGIN',NULL,'2026-11-21 11:55:54',1,'2026-11-21 03:45:54'),(2,1,'admin@busticket.ph','306910','LOGIN',NULL,'2026-11-21 11:59:02',1,'2026-11-21 03:49:02');
 /*!40000 ALTER TABLE `user_otps` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -487,4 +525,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-21 11:44:47
+-- Dump completed on 2026-11-21 11:49:17
