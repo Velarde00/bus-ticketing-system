@@ -1,8 +1,7 @@
 <?php
 /**
  * passenger/verify_payment.php
- * E-Wallet (GCash / Maya) Online Payment OTP Verification Gateway.
- * Dispatches an authorization code to the user's email and mobile number.
+ * Premium E-Wallet (GCash / Maya) Online Payment OTP Verification Gateway.
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_role('PASSENGER');
@@ -14,7 +13,6 @@ if (!$bookingId) {
     redirect('passenger/my_bookings.php');
 }
 
-// Fetch booking details
 $stmt = $pdo->prepare(
     "SELECT bk.booking_id, bk.booking_reference, bk.status, bk.trip_id,
             t.departure_time, r.origin, r.destination, b.bus_number,
@@ -72,7 +70,7 @@ if (isset($_GET['resend']) && $_GET['resend'] === '1') {
     $_SESSION['pending_payment_otp']['code'] = $newOtp['code'];
     $_SESSION['pending_payment_otp']['expires_at'] = $newOtp['expires_at'];
     $pending = $_SESSION['pending_payment_otp'];
-    set_flash('success', 'A new payment verification code has been dispatched to your email and mobile number.');
+    set_flash('success', 'A fresh payment authorization code has been dispatched.');
     redirect('passenger/verify_payment.php?booking_id=' . $bookingId);
 }
 
@@ -80,17 +78,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify()) {
         $errors[] = 'Your session expired. Please try again.';
     } else {
-        $enteredCode = trim($_POST['otp_code'] ?? '');
+        $digitArr = $_POST['otp_digits'] ?? [];
+        if (is_array($digitArr) && count($digitArr) === 6) {
+            $enteredCode = implode('', $digitArr);
+        } else {
+            $enteredCode = trim($_POST['otp_code'] ?? '');
+        }
 
         if ($enteredCode === '' || strlen($enteredCode) !== 6 || !ctype_digit($enteredCode)) {
-            $errors[] = 'Please enter a valid 6-digit verification code.';
+            $errors[] = 'Please enter all 6 digits of the payment authorization code.';
         } else {
             $isValid = verify_otp_code($pdo, $userEmail, $enteredCode, 'PAYMENT');
 
             if (!$isValid) {
-                $errors[] = 'The code you entered is invalid or has expired. Please try again.';
+                $errors[] = 'The authorization code is invalid or has expired. Please try again.';
             } else {
-                // Payment verified! Update booking & payment to CONFIRMED / PAID and issue tickets
                 try {
                     $pdo->beginTransaction();
 
@@ -114,7 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ticketUpdate = $pdo->prepare('UPDATE tickets SET ticket_number = :number WHERE ticket_id = :id');
 
                     foreach ($seatIds as $seatId) {
-                        // Check if ticket already exists
                         $chk = $pdo->prepare('SELECT ticket_id FROM tickets WHERE booking_seat_id = :seat');
                         $chk->execute([':seat' => $seatId]);
                         if (!$chk->fetchColumn()) {
@@ -124,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
 
-                    // 4. Send confirmation notification to passenger
+                    // 4. Send notification
                     $pdo->prepare(
                         "INSERT INTO notifications (user_id, title, message, link)
                          VALUES (:uid, :title, :msg, :link)"
@@ -157,79 +158,171 @@ $layout    = 'public';
 require __DIR__ . '/../includes/header.php';
 ?>
 <div class="container py-5" style="max-width: 580px;">
-    <!-- Brand / Gateway header -->
+    <!-- Modern Gateway Card -->
     <div class="card border-0 shadow-lg rounded-4 overflow-hidden mb-4">
-        <div class="bg-primary text-white p-4 text-center">
-            <div class="badge bg-white text-primary rounded-pill px-3 py-1 mb-2 fw-semibold">
-                <i class="bi bi-shield-lock-fill me-1"></i> Secure E-Wallet Gateway
+        <!-- Gateway Header with Brand Colors -->
+        <div class="p-4 text-white text-center" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 bg-white bg-opacity-20 rounded-pill mb-2">
+                <i class="bi bi-shield-lock-fill text-warning"></i>
+                <span class="small fw-semibold letter-spacing-sm">256-BIT ENCRYPTED GATEWAY</span>
             </div>
             <h1 class="h4 fw-bold mb-1">Verify Your Online Payment</h1>
-            <p class="small text-white-50 mb-0">Booking Ref: <span class="font-monospace fw-bold text-white"><?= e($booking['booking_reference']) ?></span></p>
+            <p class="small text-white-50 mb-0">Booking Reference: <strong class="text-white font-monospace"><?= e($booking['booking_reference']) ?></strong></p>
         </div>
 
         <div class="card-body p-4 p-sm-5">
-            <!-- Payment summary box -->
-            <div class="p-3 bg-light rounded-3 border mb-4">
+            <!-- Payment breakdown card -->
+            <div class="p-3 bg-light rounded-4 border mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small">Route &amp; Journey:</span>
+                    <span class="text-muted small"><i class="bi bi-geo-alt-fill text-primary me-1"></i>Trip Route:</span>
                     <strong class="text-dark small"><?= e($booking['origin']) ?> &rarr; <?= e($booking['destination']) ?></strong>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small">E-Wallet Provider:</span>
-                    <span class="badge bg-primary text-white rounded-pill px-2 py-1"><?= e($pending['wallet']) ?></span>
+                    <span class="text-muted small"><i class="bi bi-wallet2 text-primary me-1"></i>Selected Wallet:</span>
+                    <?php if ($pending['wallet'] === 'GCASH'): ?>
+                        <span class="badge bg-primary text-white rounded-pill px-3 py-1"><i class="bi bi-phone me-1"></i>GCash</span>
+                    <?php else: ?>
+                        <span class="badge bg-success text-white rounded-pill px-3 py-1"><i class="bi bi-credit-card me-1"></i>Maya</span>
+                    <?php endif; ?>
                 </div>
-                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                    <span class="fw-bold text-dark">Amount to Pay:</span>
-                    <span class="fw-bold fs-4 text-primary"><?= money($pending['amount']) ?></span>
+                <div class="d-flex justify-content-between align-items-baseline pt-2 border-top">
+                    <span class="fw-bold text-dark">Total Amount Due:</span>
+                    <span class="fw-bold fs-3 text-primary"><?= money($pending['amount']) ?></span>
                 </div>
             </div>
 
-            <!-- OTP Target Details -->
-            <div class="alert alert-secondary border-0 py-2 px-3 small rounded-3 mb-4">
-                <div class="text-muted small mb-1"><i class="bi bi-envelope me-1 text-primary"></i> OTP sent to Email: <strong><?= e($pending['masked_email']) ?></strong></div>
-                <div class="text-muted small"><i class="bi bi-phone me-1 text-primary"></i> OTP sent to Mobile: <strong><?= e($pending['masked_phone']) ?></strong></div>
+            <!-- Target Phone / Email Info -->
+            <div class="p-3 bg-light bg-opacity-75 rounded-3 border mb-4">
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-1">
+                    <span><i class="bi bi-envelope text-primary me-1"></i>Sent to Email:</span>
+                    <span class="fw-semibold text-dark font-monospace"><?= e($pending['masked_email']) ?></span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center text-muted small">
+                    <span><i class="bi bi-phone text-primary me-1"></i>Sent to Mobile:</span>
+                    <span class="fw-semibold text-dark font-monospace"><?= e($pending['masked_phone']) ?></span>
+                </div>
             </div>
 
-            <!-- Simulation Banner for Easy Local Testing -->
-            <div class="alert alert-info border-0 shadow-sm rounded-3 py-2 px-3 small d-flex align-items-center gap-2 mb-4">
-                <i class="bi bi-chat-left-dots-fill text-info flex-shrink-0 fs-5"></i>
-                <div>
-                    <strong>Payment Authorization Code:</strong><br>
-                    <span>Sent code: <strong class="badge bg-primary text-white fs-6 px-2 py-1 font-monospace"><?= e($pending['code']) ?></strong> (Click <a href="javascript:void(0);" onclick="document.getElementById('otp_code').value='<?= e($pending['code']) ?>';" class="fw-bold text-decoration-underline">Autofill</a>)</span>
+            <!-- Demo Helper Banner -->
+            <div class="alert alert-info border-0 shadow-sm rounded-4 py-3 px-3 small d-flex align-items-center gap-3 mb-4" style="background-color: #f0f9ff; border-left: 4px solid #0284c7 !important;">
+                <div class="p-2 bg-white rounded-circle shadow-sm text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px;">
+                    <i class="bi bi-key-fill fs-5"></i>
                 </div>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold text-dark">Authorization Code:</div>
+                    <div class="text-muted">Your payment code is <strong class="badge bg-primary text-white fs-6 px-2 py-1 font-monospace ms-1"><?= e($pending['code']) ?></strong></div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-none" onclick="fillPaymentOtp('<?= e($pending['code']) ?>')">
+                    Autofill
+                </button>
             </div>
 
             <?php foreach ($errors as $error): ?>
-                <div class="alert alert-danger py-2 d-flex align-items-center gap-2 border-0 shadow-sm small mb-3">
-                    <i class="bi bi-exclamation-circle-fill text-danger"></i>
+                <div class="alert alert-danger py-2 px-3 d-flex align-items-center gap-2 border-0 shadow-sm rounded-3 small mb-3">
+                    <i class="bi bi-exclamation-circle-fill text-danger flex-shrink-0"></i>
                     <div><?= e($error) ?></div>
                 </div>
             <?php endforeach; ?>
 
-            <form method="post" novalidate>
+            <form method="post" id="paymentOtpForm" novalidate>
                 <?= csrf_field() ?>
+                <input type="hidden" name="otp_code" id="hiddenPaymentOtpInput">
+
                 <div class="mb-4">
-                    <label for="otp_code" class="form-label small fw-semibold text-center d-block">Enter 6-Digit Payment OTP</label>
-                    <input type="text" class="form-control form-control-lg text-center font-monospace fw-bold"
-                           id="otp_code" name="otp_code" maxlength="6" pattern="\d{6}" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" required autofocus
-                           style="font-size: 1.8rem; letter-spacing: 0.4em;">
+                    <label class="form-label small fw-semibold text-center d-block mb-3 text-secondary">
+                        ENTER 6-DIGIT PAYMENT AUTHORIZATION CODE
+                    </label>
+                    <div class="d-flex justify-content-between gap-2 mb-2" id="paymentOtpBoxes">
+                        <?php for ($i = 0; $i < 6; $i++): ?>
+                            <input type="text"
+                                   class="form-control text-center font-monospace fw-bold rounded-3 payment-otp-box"
+                                   name="otp_digits[<?= $i ?>]"
+                                   id="pdigit-<?= $i ?>"
+                                   maxlength="1"
+                                   inputmode="numeric"
+                                   pattern="[0-9]"
+                                   autocomplete="off"
+                                   style="font-size: 1.6rem; height: 58px; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+                                   <?= $i === 0 ? 'autofocus' : '' ?>>
+                        <?php endfor; ?>
+                    </div>
+                    <div class="text-center">
+                        <span class="text-muted small" style="font-size: 0.75rem;"><i class="bi bi-shield-check text-success me-1"></i> Validated by BusTicket E-Wallet Security</span>
+                    </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm mb-3 d-flex align-items-center justify-content-center gap-2">
+                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm py-3 fw-bold d-flex align-items-center justify-content-center gap-2 mb-3">
                     <i class="bi bi-lock-fill"></i>
                     <span>Authorize &amp; Pay <?= money($pending['amount']) ?></span>
                 </button>
             </form>
 
             <div class="text-center pt-3 border-top d-flex justify-content-between align-items-center small">
-                <a href="<?= url('passenger/verify_payment.php?booking_id=' . $bookingId . '&resend=1') ?>" class="text-primary fw-semibold text-decoration-none">
-                    <i class="bi bi-arrow-repeat me-1"></i> Resend Code
+                <a href="<?= url('passenger/verify_payment.php?booking_id=' . $bookingId . '&resend=1') ?>" class="text-primary fw-semibold text-decoration-none d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-arrow-repeat"></i> Resend Code
                 </a>
-                <a href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$booking['trip_id']) ?>" class="text-muted text-decoration-none">
-                    <i class="bi bi-x-circle me-1"></i> Cancel Payment
+                <a href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$booking['trip_id']) ?>" class="text-muted text-decoration-none d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-x-circle"></i> Cancel Payment
                 </a>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    const boxes = document.querySelectorAll('.payment-otp-box');
+    const hiddenInput = document.getElementById('hiddenPaymentOtpInput');
+    const form = document.getElementById('paymentOtpForm');
+
+    function syncHiddenInput() {
+        let code = '';
+        boxes.forEach(b => code += b.value);
+        hiddenInput.value = code;
+    }
+
+    window.fillPaymentOtp = function(code) {
+        if (!code || code.length !== 6) return;
+        boxes.forEach((box, idx) => {
+            box.value = code[idx] || '';
+        });
+        syncHiddenInput();
+        boxes[5].focus();
+    };
+
+    boxes.forEach((box, idx) => {
+        box.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length >= 1) {
+                this.value = this.value[0];
+                if (idx < 5) {
+                    boxes[idx + 1].focus();
+                    boxes[idx + 1].select();
+                }
+            }
+            syncHiddenInput();
+        });
+
+        box.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && idx > 0) {
+                boxes[idx - 1].focus();
+                boxes[idx - 1].value = '';
+                syncHiddenInput();
+            }
+        });
+
+        box.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim().replace(/[^0-9]/g, '');
+            if (pasteData) {
+                fillPaymentOtp(pasteData.slice(0, 6));
+            }
+        });
+    });
+
+    form.addEventListener('submit', function() {
+        syncHiddenInput();
+    });
+})();
+</script>
 <?php require __DIR__ . '/../includes/footer.php'; ?>
