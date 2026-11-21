@@ -360,7 +360,8 @@ h1, h2, h3, h4, h5, h6,
    Hero Section & Search Ticket Panel
    ========================================================== */
 .hero-elevated {
-    background: linear-gradient(135deg, #0b1522 0%, #0f2334 45%, #0a332c 100%);
+    background: linear-gradient(135deg, rgba(11, 21, 34, 0.88) 0%, rgba(15, 35, 52, 0.84) 45%, rgba(10, 51, 44, 0.90) 100%),
+                url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1920&q=80') center center / cover no-repeat;
     color: #FFFFFF;
     padding: 4.5rem 0 5rem;
     position: relative;
