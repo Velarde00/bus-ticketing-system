@@ -122,6 +122,7 @@ CREATE TABLE `bookings` (
   `booking_date` datetime NOT NULL DEFAULT current_timestamp(),
   `status` enum('PENDING','CONFIRMED','CANCELLED') NOT NULL DEFAULT 'PENDING',
   `cancelled_by` enum('PASSENGER','ADMIN') DEFAULT NULL,
+  `cancellation_choice` enum('REFUND_REQUESTED','REBOOK_REQUESTED') DEFAULT NULL,
   PRIMARY KEY (`booking_id`),
   UNIQUE KEY `uq_bookings_reference` (`booking_reference`),
   UNIQUE KEY `uq_bookings_id_trip` (`booking_id`,`trip_id`),
@@ -555,4 +556,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-21 12:09:04
+-- Dump completed on 2026-11-21 12:12:07
