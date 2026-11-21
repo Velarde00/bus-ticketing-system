@@ -51,8 +51,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ticketUpdate->execute([':number' => sprintf('TKT-%s-%06d', date('Y'), $ticketId), ':id' => $ticketId]);
                 }
             } else {
+                // Fetch booking details to notify the passenger
+                $bkInfoStmt = $pdo->prepare(
+                    "SELECT bk.booking_id, bk.booking_reference, bk.user_id, u.email AS user_email,
+                            r.origin, r.destination, t.departure_time
+                     FROM bookings bk
+                     JOIN users u ON u.user_id = bk.user_id
+                     JOIN trips t ON t.trip_id = bk.trip_id
+                     JOIN routes r ON r.route_id = t.route_id
+                     WHERE bk.booking_id = :id"
+                );
+                $bkInfoStmt->execute([':id' => $bookingId]);
+                $bkInfo = $bkInfoStmt->fetch();
+
                 $pdo->prepare("UPDATE bookings SET status = 'CANCELLED', cancelled_by = 'ADMIN' WHERE booking_id = :id")->execute([':id' => $bookingId]);
                 $pdo->prepare("UPDATE booking_seats SET seat_status = 'CANCELLED' WHERE booking_id = :id")->execute([':id' => $bookingId]);
+
+                if ($bkInfo) {
+                    $originDest = ($bkInfo['origin'] ?? 'Origin') . ' → ' . ($bkInfo['destination'] ?? 'Destination');
+                    $depFormatted = !empty($bkInfo['departure_time']) ? fmt_datetime($bkInfo['departure_time']) : 'scheduled departure';
+                    $notifTitle = 'Reservation Cancelled by Terminal';
+                    $notifMsg = "Your reservation {$bkInfo['booking_reference']} ({$originDest}) scheduled for {$depFormatted} has been cancelled by administration. You may rebook another trip or request a full refund.";
+                    $notifLink = 'passenger/booking_confirmation.php?booking_id=' . (int)$bookingId;
+
+                    send_user_notification(
+                        $pdo,
+                        (int)$bkInfo['user_id'],
+                        $notifTitle,
+                        $notifMsg,
+                        $notifLink,
+                        $bkInfo['user_email'] ?? null
+                    );
+                }
             }
             $pdo->commit();
             set_flash('success', $action === 'confirm' ? 'Reservation confirmed and tickets issued.' : 'Reservation cancelled and seats released.');

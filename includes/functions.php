@@ -220,6 +220,38 @@ function verify_otp_code(PDO $pdo, string $email, string $code, string $purpose)
 }
 
 /**
+ * Send an in-app notification (and optional email) to a user.
+ */
+function send_user_notification(PDO $pdo, int $userId, string $title, string $message, ?string $link = null, ?string $userEmail = null): void
+{
+    try {
+        $stmt = $pdo->prepare(
+            "INSERT INTO notifications (user_id, title, message, link, created_at)
+             VALUES (:uid, :title, :msg, :link, NOW())"
+        );
+        $stmt->execute([
+            ':uid'   => $userId,
+            ':title' => mb_substr($title, 0, 120),
+            ':msg'   => mb_substr($message, 0, 500),
+            ':link'  => $link ? mb_substr($link, 0, 255) : null
+        ]);
+
+        if ($userEmail) {
+            $subject = 'BusTicket Alert: ' . $title;
+            $emailBody = "Hello,\r\n\r\n" . $message . "\r\n\r\n";
+            if ($link) {
+                $emailBody .= "View details: " . url($link) . "\r\n\r\n";
+            }
+            $emailBody .= "Thank you,\r\n" . APP_NAME . " Express";
+            $headers = "From: noreply@busticket.ph\r\nReply-To: support@busticket.ph\r\nX-Mailer: PHP/" . phpversion();
+            @mail($userEmail, $subject, $emailBody, $headers);
+        }
+    } catch (Throwable $e) {
+        error_log('send_user_notification error: ' . $e->getMessage());
+    }
+}
+
+/**
  * Returns the relative image path corresponding to a bus type.
  */
 function bus_type_image(string $busType): string

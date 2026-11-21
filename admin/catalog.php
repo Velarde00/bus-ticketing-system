@@ -237,8 +237,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $pdo->prepare("UPDATE {$config['table']} SET " . implode(', ', $sets) . " WHERE {$config['key']} = :id");
                     $stmt->execute($values);
 
-                    // If a trip status is changed to CANCELLED by admin, cancel all bookings and mark as cancelled by ADMIN
+                    // If a trip status is changed to CANCELLED by admin, cancel all bookings and notify passengers
                     if ($type === 'trips' && ($values['status'] ?? '') === 'CANCELLED') {
+                        // 1. Fetch trip details & affected bookings
+                        $tripInfoStmt = $pdo->prepare(
+                            "SELECT t.departure_time, r.origin, r.destination, b.bus_number
+                             FROM trips t
+                             JOIN routes r ON r.route_id = t.route_id
+                             JOIN buses b ON b.bus_id = t.bus_id
+                             WHERE t.trip_id = :tid"
+                        );
+                        $tripInfoStmt->execute([':tid' => $id]);
+                        $tInfo = $tripInfoStmt->fetch();
+
+                        $affectedBookingsStmt = $pdo->prepare(
+                            "SELECT bk.booking_id, bk.booking_reference, bk.user_id, u.email AS user_email
+                             FROM bookings bk
+                             JOIN users u ON u.user_id = bk.user_id
+                             WHERE bk.trip_id = :tid AND bk.status <> 'CANCELLED'"
+                        );
+                        $affectedBookingsStmt->execute([':tid' => $id]);
+                        $affectedBookings = $affectedBookingsStmt->fetchAll();
+
+                        // 2. Mark bookings and seats as CANCELLED
                         $pdo->prepare(
                             "UPDATE bookings SET status = 'CANCELLED', cancelled_by = 'ADMIN'
                              WHERE trip_id = :tid AND status <> 'CANCELLED'"
@@ -250,6 +271,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              SET bs.seat_status = 'CANCELLED'
                              WHERE bk.trip_id = :tid"
                         )->execute([':tid' => $id]);
+
+                        // 3. Notify each affected passenger
+                        $originDest = ($tInfo['origin'] ?? 'Origin') . ' → ' . ($tInfo['destination'] ?? 'Destination');
+                        $depFormatted = !empty($tInfo['departure_time']) ? fmt_datetime($tInfo['departure_time']) : 'scheduled departure';
+
+                        foreach ($affectedBookings as $ab) {
+                            $notifTitle = 'Trip Cancelled by Operator';
+                            $notifMsg = "Your trip ({$originDest}) scheduled for {$depFormatted} (Ref: {$ab['booking_reference']}) was cancelled by bus terminal management. You can rebook another trip or request a full refund.";
+                            $notifLink = 'passenger/booking_confirmation.php?booking_id=' . (int)$ab['booking_id'];
+
+                            send_user_notification(
+                                $pdo,
+                                (int)$ab['user_id'],
+                                $notifTitle,
+                                $notifMsg,
+                                $notifLink,
+                                $ab['user_email'] ?? null
+                            );
+                        }
                     }
                 } else {
                     $names = array_keys($values);

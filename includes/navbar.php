@@ -36,6 +36,11 @@ if ($user && !empty($user['name'])) {
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link <?= $currentScript === 'notifications.php' ? 'active' : '' ?>" href="<?= url('passenger/notifications.php') ?>">
+                            <i class="bi bi-bell me-1 text-muted"></i> Notifications
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link <?= $currentScript === 'profile.php' ? 'active' : '' ?>" href="<?= url('passenger/profile.php') ?>">
                             <i class="bi bi-person-gear me-1 text-muted"></i> Profile
                         </a>
