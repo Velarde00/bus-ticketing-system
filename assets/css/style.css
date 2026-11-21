@@ -606,15 +606,50 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ==========================================================
-   Trip Results Cards
+   Trip Results Cards with Bus Backdrop
    ========================================================== */
 .trip-card-modern {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+    background-size: cover;
+    background-position: center right;
+    background-repeat: no-repeat;
 }
 
 .trip-card-modern:hover {
-    box-shadow: var(--shadow-md) !important;
-    border-color: #CBD5E1 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05) !important;
+    border-color: #0E7C66 !important;
+}
+
+.trip-card-bus-watermark {
+    position: absolute;
+    right: -10px;
+    bottom: -15px;
+    width: 220px;
+    height: 120px;
+    background-size: cover;
+    background-position: center;
+    border-radius: var(--radius-md);
+    opacity: 0.18;
+    pointer-events: none;
+    filter: blur(0.5px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 0;
+}
+
+.trip-card-modern:hover .trip-card-bus-watermark {
+    opacity: 0.32;
+    transform: scale(1.05);
+}
+
+.trip-selection-hero {
+    background-position: center right !important;
+    background-size: cover !important;
+    min-height: 150px;
+}
+
+.hover-text-white:hover {
+    color: #FFFFFF !important;
 }
 
 .trip-time-digit {

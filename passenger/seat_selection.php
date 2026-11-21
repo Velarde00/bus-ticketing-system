@@ -42,47 +42,51 @@ $takenSeats = array_map('intval', $taken->fetchAll(PDO::FETCH_COLUMN));
 $total   = (int)$trip['total_seats'];
 $rows    = (int)ceil($total / 4);
 $freeNow = $total - count($takenSeats);
+$busImg = url(bus_type_image($trip['bus_type'] ?? ''));
 
 $pageTitle = 'Choose your seats';
 $layout    = 'public';
 require __DIR__ . '/../includes/header.php';
 ?>
 <div class="container py-4">
-    <!-- Navigation back & Trip title -->
-    <div class="mb-4">
-        <a href="javascript:history.back()" class="text-muted text-decoration-none small d-inline-flex align-items-center gap-1 mb-2">
-            <i class="bi bi-arrow-left"></i> Back to search results
-        </a>
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div>
-                <h1 class="h3 fw-bold mb-1 d-flex align-items-center gap-2">
-                    <span><?= e($trip['origin']) ?></span>
-                    <i class="bi bi-arrow-right text-primary opacity-75"></i>
-                    <span><?= e($trip['destination']) ?></span>
-                </h1>
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
-                        <i class="bi bi-calendar-event me-1"></i> Departure Date: <?= e(fmt_date($trip['departure_time'])) ?>
-                    </span>
-                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-3 py-2 rounded-pill fw-semibold">
-                        <i class="bi bi-clock-fill text-warning me-1"></i> Departure Time: <?= e(fmt_time($trip['departure_time'])) ?>
-                    </span>
-                    <span class="badge bg-light text-muted border px-3 py-2 rounded-pill small">
-                        <i class="bi bi-bus-front me-1 text-primary"></i> Bus <?= e($trip['bus_number']) ?> (<?= e($trip['bus_type']) ?>)
-                    </span>
-                    <span class="badge bg-light text-muted border px-3 py-2 rounded-pill small">
-                        <i class="bi bi-person-badge me-1 text-primary"></i> Driver: <?= e($trip['driver_name']) ?>
-                    </span>
+    <!-- Navigation back & Trip title Hero Banner with Bus Background -->
+    <div class="trip-selection-hero p-4 rounded-4 mb-4 shadow-sm border position-relative overflow-hidden"
+         style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(14, 124, 102, 0.88) 100%), url('<?= e($busImg) ?>') center center / cover no-repeat;">
+        <div class="position-relative z-1 text-white">
+            <a href="javascript:history.back()" class="text-white-50 text-decoration-none small d-inline-flex align-items-center gap-1 mb-2 hover-text-white">
+                <i class="bi bi-arrow-left"></i> Back to search results
+            </a>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <h1 class="h3 fw-bold mb-1 d-flex align-items-center gap-2 text-white">
+                        <span><?= e($trip['origin']) ?></span>
+                        <i class="bi bi-arrow-right text-warning opacity-75"></i>
+                        <span><?= e($trip['destination']) ?></span>
+                    </h1>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                        <span class="badge bg-white bg-opacity-15 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill fw-semibold">
+                            <i class="bi bi-calendar-event me-1"></i> <?= e(fmt_date($trip['departure_time'])) ?>
+                        </span>
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-semibold shadow-xs">
+                            <i class="bi bi-clock-fill me-1"></i> <?= e(fmt_time($trip['departure_time'])) ?>
+                        </span>
+                        <span class="badge bg-white bg-opacity-20 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill small">
+                            <i class="bi bi-bus-front me-1 text-warning"></i> Bus <?= e($trip['bus_number']) ?> &bull; <?= e($trip['bus_type']) ?>
+                        </span>
+                        <span class="badge bg-white bg-opacity-15 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill small">
+                            <i class="bi bi-person-badge me-1 text-warning"></i> Driver: <?= e($trip['driver_name']) ?>
+                        </span>
+                    </div>
                 </div>
-            </div>
-            <div class="text-end">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fs-6 d-inline-block">
-                    <?= money($trip['fare']) ?> <span class="fw-normal small text-muted">/ regular seat</span>
-                </span>
-                <div class="mt-1">
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill small" title="Mandated 20% discount for Students, Senior Citizens, and PWDs">
-                        <i class="bi bi-tag-fill me-1"></i> Discounted: <?= money($trip['fare'] * 0.80) ?> (20% off)
+                <div class="text-start text-md-end">
+                    <span class="badge bg-white text-dark px-3 py-2 rounded-pill fs-6 d-inline-block shadow-sm">
+                        <?= money($trip['fare']) ?> <span class="fw-normal small text-muted">/ regular seat</span>
                     </span>
+                    <div class="mt-1">
+                        <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small shadow-xs" title="Mandated 20% discount for Students, Senior Citizens, and PWDs">
+                            <i class="bi bi-tag-fill me-1"></i> Discounted: <?= money($trip['fare'] * 0.80) ?> (20% off)
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

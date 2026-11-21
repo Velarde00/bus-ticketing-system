@@ -219,3 +219,25 @@ function verify_otp_code(PDO $pdo, string $email, string $code, string $purpose)
     return true;
 }
 
+/**
+ * Returns the relative image path corresponding to a bus type.
+ */
+function bus_type_image(string $busType): string
+{
+    $type = strtolower($busType);
+    if (str_contains($type, 'super deluxe') || str_contains($type, 'sleeper') || str_contains($type, 'lazy boy')) {
+        return 'assets/images/buses/super-deluxe.jpg';
+    }
+    if (str_contains($type, 'deluxe') || str_contains($type, 'first class')) {
+        return 'assets/images/buses/deluxe.jpg';
+    }
+    if (str_contains($type, 'ordinary') || str_contains($type, 'non-aircon')) {
+        return 'assets/images/buses/ordinary.jpg';
+    }
+    if (str_contains($type, 'double-decker') || str_contains($type, 'double decker')) {
+        return 'assets/images/buses/double-decker.jpg';
+    }
+    // Default / Standard Regular / P2P / Provincial
+    return 'assets/images/buses/standard.jpg';
+}
+

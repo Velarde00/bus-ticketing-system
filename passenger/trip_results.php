@@ -131,23 +131,29 @@ require __DIR__ . '/../includes/header.php';
                                 <?php
                                     $otLeft = max(0, (int)$ot['available_seats']);
                                     $otDep = strtotime($ot['departure_time']);
+                                    $otBusImg = url(bus_type_image($ot['bus_type'] ?? ''));
                                 ?>
                                 <div class="col-md-6">
-                                    <div class="p-3 bg-light rounded-3 border h-100 d-flex flex-column justify-content-between">
-                                        <div>
+                                    <div class="trip-card-subtle-bg p-3 rounded-4 border h-100 d-flex flex-column justify-content-between position-relative overflow-hidden shadow-sm"
+                                         style="background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.85) 100%), url('<?= e($otBusImg) ?>') center center / cover no-repeat;">
+                                        <div class="position-relative z-1">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span class="badge bg-primary text-white px-2 py-1 rounded-pill small">
                                                     <i class="bi bi-calendar-event me-1"></i> <?= e(date('l, M j, Y', $otDep)) ?>
                                                 </span>
-                                                <span class="badge bg-white text-dark border small font-monospace">Bus #<?= e($ot['bus_number']) ?></span>
+                                                <span class="badge bg-white text-dark border small font-monospace shadow-xs">Bus #<?= e($ot['bus_number']) ?></span>
                                             </div>
                                             <div class="h5 fw-bold text-dark mb-1">
                                                 <i class="bi bi-clock-fill text-warning me-1"></i> <?= e(fmt_time($ot['departure_time'])) ?>
                                                 <span class="text-muted small fw-normal">&rarr; <?= e(fmt_time($ot['arrival_time'])) ?></span>
                                             </div>
-                                            <div class="text-muted small mb-2"><?= e($ot['bus_type']) ?></div>
+                                            <div class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="badge bg-white text-dark border shadow-xs small">
+                                                    <i class="bi bi-bus-front text-primary me-1"></i> <?= e($ot['bus_type']) ?>
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                        <div class="d-flex justify-content-between align-items-center pt-2 border-top position-relative z-1">
                                             <div>
                                                 <strong class="text-primary fs-5"><?= money($ot['fare']) ?></strong>
                                                 <span class="badge bg-success-subtle text-success ms-1 small"><?= $otLeft ?> seats left</span>
@@ -155,7 +161,7 @@ require __DIR__ . '/../includes/header.php';
                                                     <i class="bi bi-tag-fill me-1"></i><?= money($ot['fare'] * 0.80) ?> with 20% discount
                                                 </div>
                                             </div>
-                                            <a href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$ot['trip_id']) ?>" class="btn btn-primary btn-sm rounded-pill px-3">
+                                            <a href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$ot['trip_id']) ?>" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
                                                 Select Seats <i class="bi bi-arrow-right ms-1"></i>
                                             </a>
                                         </div>
@@ -181,13 +187,16 @@ require __DIR__ . '/../includes/header.php';
                         $depTime = strtotime($t['departure_time']);
                         $arrTime = strtotime($t['arrival_time']);
                         $durationHours = $arrTime > $depTime ? round(($arrTime - $depTime) / 3600, 1) : null;
+                        $busImg = url(bus_type_image($t['bus_type'] ?? ''));
                     ?>
-                    <article class="trip-card-modern shadow-sm bg-white rounded-4 border overflow-hidden p-3 p-md-4">
-                        <div class="row align-items-center g-3">
+                    <article class="trip-card-modern trip-card-with-bg shadow-sm rounded-4 border overflow-hidden p-3 p-md-4 position-relative"
+                             style="background-image: linear-gradient(100deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.92) 55%, rgba(255,255,255,0.85) 100%), url('<?= e($busImg) ?>');">
+                        <div class="trip-card-bus-watermark" style="background-image: url('<?= e($busImg) ?>');"></div>
+                        <div class="row align-items-center g-3 position-relative z-1">
                             <!-- Bus & Operator Info -->
                             <div class="col-lg-3">
                                 <div class="d-flex align-items-center gap-2 mb-2">
-                                    <span class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1 rounded-pill">
+                                    <span class="badge bg-primary text-white fw-semibold px-2 py-1 rounded-pill shadow-xs">
                                         <i class="bi bi-bus-front me-1"></i> <?= e($t['bus_type']) ?>
                                     </span>
                                 </div>
@@ -196,7 +205,7 @@ require __DIR__ . '/../includes/header.php';
 
                                 <!-- Prominent Departure Date Stamp -->
                                 <div class="mt-2">
-                                    <span class="badge bg-light text-primary border border-primary-subtle px-2 py-1 rounded-pill small">
+                                    <span class="badge bg-white text-primary border border-primary-subtle px-2 py-1 rounded-pill small shadow-xs">
                                         <i class="bi bi-calendar-event me-1"></i> <?= e(date('D, M j, Y', $depTime)) ?>
                                     </span>
                                 </div>
