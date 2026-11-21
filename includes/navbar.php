@@ -98,13 +98,6 @@ if ($user && !empty($user['name'])) {
                             </li>
                         </ul>
                     </div>
-                <?php else: ?>
-                    <a class="btn btn-outline-secondary btn-sm px-3" href="<?= url('index.php#hero-portal') ?>" onclick="toggleLandingToLogin()">
-                        <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
-                    </a>
-                    <a class="btn btn-primary btn-sm px-3 shadow-sm" href="<?= url('index.php#hero-portal') ?>" onclick="toggleLandingToRegister()">
-                        <i class="bi bi-person-plus me-1"></i> Register
-                    </a>
                 <?php endif; ?>
             </div>
         </div>
