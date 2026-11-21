@@ -122,139 +122,171 @@ $pageTitle = 'Book your bus seat';
 $layout    = 'public';
 require __DIR__ . '/includes/header.php';
 ?>
-<!-- Hero Section -->
-<section class="hero hero-elevated position-relative overflow-hidden">
+<!-- Hero Section with Integrated Sliding Auth Portal -->
+<section class="hero hero-elevated position-relative overflow-hidden" id="hero-portal">
     <div class="hero-ambient-glow"></div>
-    <div class="container position-relative z-1">
-        <div class="row align-items-center g-5 py-2">
-            <div class="col-lg-6 text-white">
-                <div class="hero-badge mb-3 d-inline-flex align-items-center gap-2">
-                    <span class="badge-dot"></span>
-                    <span>Official Philippine Bus Booking Portal</span>
-                </div>
-                <h1 class="hero-title mb-3">
-                    Pick your trip.<br>
-                    Pick your seat.<br>
-                    <span class="text-signal">Be on the bus.</span>
-                </h1>
-                <p class="hero-sub mb-4">
-                    Fast, secure intercity travel across Luzon, Visayas, and Mindanao. View real-time seating layouts, book in minutes, and print your digital boarding pass.
-                </p>
-
-                <!-- Popular Route Shortcuts with Next Departure Time & Date -->
-                <?php if ($routes): ?>
-                    <div class="hero-quick-routes pt-2">
-                        <span class="small text-white-50 d-block mb-2">
-                            <i class="bi bi-clock-history text-warning me-1"></i> Scheduled upcoming routes (click to select):
-                        </span>
-                        <div class="d-flex flex-wrap gap-2">
-                            <?php foreach (array_slice($routes, 0, 4) as $qr): ?>
-                                <?php
-                                    $qrDate = !empty($qr['next_departure']) ? date('Y-m-d', strtotime($qr['next_departure'])) : '';
-                                    $qrTime = !empty($qr['next_departure']) ? fmt_time($qr['next_departure']) : '';
-                                    $qrDateFmt = !empty($qr['next_departure']) ? fmt_date($qr['next_departure']) : '';
-                                ?>
-                                <button type="button" class="btn btn-outline-light btn-sm hero-chip"
-                                        onclick="fillSearch('<?= e(addslashes($qr['origin'])) ?>', '<?= e(addslashes($qr['destination'])) ?>', '<?= e($qrDate) ?>')">
-                                    <?= e($qr['origin']) ?> <i class="bi bi-arrow-right mx-1 opacity-75"></i> <?= e($qr['destination']) ?>
-                                    <?php if ($qrDateFmt): ?>
-                                        <span class="badge bg-warning text-dark ms-1 small"><?= e($qrDateFmt) ?> &bull; <?= e($qrTime) ?></span>
-                                    <?php endif; ?>
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
+    <div class="container position-relative z-1 py-4">
+        <div class="text-center text-white mb-4">
+            <div class="hero-badge mb-3 d-inline-flex align-items-center gap-2">
+                <span class="badge-dot"></span>
+                <span>Official Philippine Bus Booking Portal</span>
             </div>
+            <h1 class="hero-title mb-2">
+                Fast &amp; Reliable Intercity Bus Travel
+            </h1>
+            <p class="hero-sub mb-0 text-white-50 mx-auto" style="max-width: 650px;">
+                Sign in or register below to reserve your seats, select coach layouts, and download instant boarding passes.
+            </p>
+        </div>
 
-            <div class="col-lg-6" id="search">
-                <form class="ticket-panel shadow-lg" method="get" action="<?= url('passenger/trip_results.php') ?>">
-                    <div class="ticket-panel-header d-flex justify-content-between align-items-center mb-4">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="ticket-panel-icon"><i class="bi bi-search"></i></span>
-                            <div>
-                                <h2 class="h5 mb-0 fw-bold">Find a Trip</h2>
-                                <small class="text-muted">Search scheduled departures</small>
-                            </div>
-                        </div>
-                        <div class="d-flex flex-column align-items-end gap-1">
-                            <span class="badge bg-light text-primary border px-2 py-1"><i class="bi bi-shield-check"></i> Instant Booking</span>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem;">
-                                <i class="bi bi-tag-fill me-1"></i> 20% Off for Student / Senior / PWD
-                            </span>
-                        </div>
-                    </div>
+        <!-- Integrated Sliding Login and Register Container in place of Find a Trip -->
+        <?php if (!is_logged_in()): ?>
+            <div class="d-flex justify-content-center my-3">
+                <div class="auth-container-sliding <?= $activeAuthTab === 'register' ? 'right-panel-active' : '' ?>" id="authContainerLanding">
+                    <!-- Register Form Box -->
+                    <div class="form-container sign-up-container">
+                        <form method="post" action="<?= url('index.php#hero-portal') ?>" class="auth-inner-form" novalidate>
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="landing_register">
+                            <h2 class="h4 fw-bold text-dark mb-1">Create Passenger Account</h2>
+                            <p class="text-muted small mb-3">Join in one minute to book seats &amp; travel nationwide.</p>
 
-                    <div class="row g-3 align-items-center">
-                        <div class="col-md-5 position-relative">
-                            <label for="originInput" class="form-label d-flex align-items-center gap-1">
-                                <i class="bi bi-geo-alt-fill text-primary"></i> Departure City
-                            </label>
-                            <div class="input-group">
-                                <input type="text" class="form-control autocomplete-city" id="originInput" name="origin" placeholder="Type city (e.g. Manila)..." value="<?= e($selOrigin) ?>" autocomplete="off" required>
-                                <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <span class="visually-hidden">Toggle Dropdown</span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow w-100" id="originDropdown">
-                                    <?php foreach ($origins as $city): ?>
-                                        <li><button class="dropdown-item city-opt" type="button" data-target="originInput"><?= e($city) ?></button></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
-                            <div class="autocomplete-suggestions list-group shadow position-absolute w-100 d-none" id="originSuggestions" style="z-index: 1050; max-height: 220px; overflow-y: auto;"></div>
-                        </div>
-
-                        <div class="col-md-2 text-center py-1 py-md-0">
-                            <button type="button" class="btn btn-outline-dark btn-swap rounded-circle" id="swapCities" title="Swap origin and destination" aria-label="Swap origin and destination">
-                                <i class="bi bi-arrow-left-right"></i>
-                            </button>
-                        </div>
-
-                        <div class="col-md-5 position-relative">
-                            <label for="destinationInput" class="form-label d-flex align-items-center gap-1">
-                                <i class="bi bi-geo-fill text-danger"></i> Destination City
-                            </label>
-                            <div class="input-group">
-                                <input type="text" class="form-control autocomplete-city" id="destinationInput" name="destination" placeholder="Type destination (e.g. Baguio)..." value="<?= e($selDest) ?>" autocomplete="off" required>
-                                <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <span class="visually-hidden">Toggle Dropdown</span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow w-100" id="destinationDropdown">
-                                    <?php foreach ($destinations as $city): ?>
-                                        <li><button class="dropdown-item city-opt" type="button" data-target="destinationInput"><?= e($city) ?></button></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
-                            <div class="autocomplete-suggestions list-group shadow position-absolute w-100 d-none" id="destinationSuggestions" style="z-index: 1050; max-height: 220px; overflow-y: auto;"></div>
-                        </div>
-
-                        <div class="col-12">
-                            <label for="date" class="form-label d-flex align-items-center gap-1">
-                                <i class="bi bi-calendar3 text-warning"></i> Departure Date
-                            </label>
-                            <input type="date" class="form-control" id="date" name="date" min="<?= date('Y-m-d') ?>" value="<?= e($selDate) ?>" required>
-                            <?php if (!empty($upcomingTrips)): ?>
-                                <div class="form-text text-muted small mt-1">
-                                    <i class="bi bi-info-circle-fill text-primary me-1"></i> Earliest available scheduled bus departs on:
-                                    <strong><?= e(fmt_date($upcomingTrips[0]['departure_time'])) ?></strong> (<?= e(fmt_time($upcomingTrips[0]['departure_time'])) ?>)
+                            <?php if ($activeAuthTab === 'register' && $authErrors): ?>
+                                <div class="alert alert-danger py-1 px-2 border-0 shadow-sm small mb-2 w-100 text-start">
+                                    <ul class="mb-0 ps-3">
+                                        <?php foreach ($authErrors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
+                                    </ul>
                                 </div>
                             <?php endif; ?>
+
+                            <div class="row g-2 w-100 mb-2">
+                                <div class="col-6 text-start">
+                                    <label class="form-label small fw-semibold mb-1">First Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="first_name" value="<?= e($_POST['first_name'] ?? '') ?>" placeholder="Juan" required>
+                                </div>
+                                <div class="col-6 text-start">
+                                    <label class="form-label small fw-semibold mb-1">Last Name</label>
+                                    <input type="text" class="form-control form-control-sm" name="last_name" value="<?= e($_POST['last_name'] ?? '') ?>" placeholder="Dela Cruz" required>
+                                </div>
+                            </div>
+
+                            <div class="w-100 text-start mb-2">
+                                <label class="form-label small fw-semibold mb-1">Email Address</label>
+                                <input type="email" class="form-control form-control-sm" name="email" value="<?= e($_POST['email'] ?? '') ?>" placeholder="juan@example.com" required>
+                            </div>
+
+                            <div class="w-100 text-start mb-2">
+                                <label class="form-label small fw-semibold mb-1">Mobile Number</label>
+                                <input type="tel" class="form-control form-control-sm" name="phone_number" value="<?= e($_POST['phone_number'] ?? '') ?>" placeholder="09171234567" required>
+                            </div>
+
+                            <div class="row g-2 w-100 mb-3">
+                                <div class="col-6 text-start">
+                                    <label class="form-label small fw-semibold mb-1">Password</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="password" class="form-control" id="reg_pw_home" name="password" placeholder="Min. 8 chars" required>
+                                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="reg_pw_home"><i class="bi bi-eye"></i></button>
+                                    </div>
+                                </div>
+                                <div class="col-6 text-start">
+                                    <label class="form-label small fw-semibold mb-1">Confirm</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="password" class="form-control" id="reg_cpw_home" name="confirm_password" placeholder="Repeat" required>
+                                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="reg_cpw_home"><i class="bi bi-eye"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-person-check-fill me-1"></i> Register &amp; Verify OTP
+                            </button>
+                            <div class="d-block d-md-none mt-3">
+                                <a href="javascript:void(0)" onclick="toggleLandingToLogin()" class="text-primary small fw-semibold">Already registered? Sign In</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Login Form Box -->
+                    <div class="form-container sign-in-container">
+                        <form method="post" action="<?= url('index.php#hero-portal') ?>" class="auth-inner-form" novalidate>
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="landing_login">
+
+                            <div class="brand-icon-wrapper mb-2" style="width: 52px; height: 52px; font-size: 1.5rem; background: var(--primary-subtle, #ecfdf5); color: var(--primary, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-bus-front-fill"></i>
+                            </div>
+                            <h2 class="h3 fw-bold text-dark mb-1">Welcome Back</h2>
+                            <p class="text-muted small mb-4">Sign in to your account with your email &amp; password.</p>
+
+                            <?php if ($activeAuthTab === 'login' && $authErrors): ?>
+                                <div class="alert alert-danger py-2 px-3 border-0 shadow-sm small mb-3 w-100 text-start">
+                                    <ul class="mb-0 ps-3">
+                                        <?php foreach ($authErrors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="w-100 text-start mb-3">
+                                <label class="form-label small fw-semibold">Email address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
+                                    <input type="email" class="form-control border-start-0 ps-0" name="email" value="<?= e($_POST['email'] ?? '') ?>" autocomplete="email" placeholder="name@example.com" required>
+                                </div>
+                            </div>
+
+                            <div class="w-100 text-start mb-4">
+                                <label class="form-label small fw-semibold">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
+                                    <input type="password" class="form-control border-start-0 border-end-0 ps-0" id="login_pw_home" name="password" autocomplete="current-password" placeholder="Enter password" required>
+                                    <button class="btn btn-outline-secondary border-start-0" type="button" data-password-toggle="login_pw_home"><i class="bi bi-eye"></i></button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary rounded-pill w-100 py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                                <i class="bi bi-box-arrow-in-right"></i> Sign In to Account
+                            </button>
+                            <div class="d-block d-md-none mt-3">
+                                <a href="javascript:void(0)" onclick="toggleLandingToRegister()" class="text-primary small fw-semibold">Need an account? Sign Up</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Sliding Cover Layer -->
+                    <div class="overlay-container">
+                        <div class="overlay">
+                            <div class="overlay-panel overlay-left">
+                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small mb-3">Philippine Intercity Express</span>
+                                <h2 class="h2 fw-bold text-white mb-2">Welcome Back!</h2>
+                                <p class="text-white-50 px-4 small mb-4">Sign in with your email &amp; password to view your booked trips, digital boarding passes, and ticket receipts.</p>
+                                <button type="button" class="btn btn-outline-light rounded-pill px-5 py-2 fw-bold shadow-sm" onclick="toggleLandingToLogin()">
+                                    <i class="bi bi-arrow-left me-1"></i> Sign In
+                                </button>
+                            </div>
+
+                            <div class="overlay-panel overlay-right">
+                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small mb-3">Instant Online Booking</span>
+                                <h2 class="h2 fw-bold text-white mb-2">Hello, Traveler!</h2>
+                                <p class="text-white-50 px-4 small mb-4">Register your passenger account today to select preferred bus seats, receive e-wallet tickets, and enjoy 20% discounts.</p>
+                                <button type="button" class="btn btn-outline-light rounded-pill px-5 py-2 fw-bold shadow-sm" onclick="toggleLandingToRegister()">
+                                    Sign Up <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="ticket-tear">
-                        <span class="ticket-tear-circle left"></span>
-                        <span class="ticket-tear-line"></span>
-                        <span class="ticket-tear-circle right"></span>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2">
-                        <i class="bi bi-search"></i>
-                        <span>Search Available Buses</span>
-                    </button>
-                </form>
+                </div>
             </div>
-        </div>
+        <?php else: ?>
+            <div class="text-center py-4">
+                <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-20 max-w-600 mx-auto">
+                    <h3 class="h4 text-white fw-bold mb-2">You are currently logged in</h3>
+                    <p class="text-white-50 small mb-3">Go to your dashboard to manage your bookings and reservations.</p>
+                    <a href="<?= url(in_array($_SESSION['role'], ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php') ?>" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                        Go to Dashboard <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </section>
 
@@ -454,147 +486,8 @@ require __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<!-- Built-In Sliding Login & Register Section on Landing Page -->
-<?php if (!is_logged_in()): ?>
-<section class="auth-page-scenic py-5 d-flex align-items-center justify-content-center" id="account-access">
-    <div class="auth-floating-glow"></div>
-    <div class="auth-container-sliding <?= $activeAuthTab === 'register' ? 'right-panel-active' : '' ?>" id="authContainerLanding">
-        <!-- Register Form Box -->
-        <div class="form-container sign-up-container">
-            <form method="post" action="<?= url('index.php#account-access') ?>" class="auth-inner-form" novalidate>
-                <?= csrf_field() ?>
-                <input type="hidden" name="action" value="landing_register">
-                <h2 class="h4 fw-bold text-dark mb-1">Create Passenger Account</h2>
-                <p class="text-muted small mb-3">Join in one minute to book seats &amp; travel nationwide.</p>
-
-                <?php if ($activeAuthTab === 'register' && $authErrors): ?>
-                    <div class="alert alert-danger py-1 px-2 border-0 shadow-sm small mb-2 w-100 text-start">
-                        <ul class="mb-0 ps-3">
-                            <?php foreach ($authErrors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <div class="row g-2 w-100 mb-2">
-                    <div class="col-6 text-start">
-                        <label class="form-label small fw-semibold mb-1">First Name</label>
-                        <input type="text" class="form-control form-control-sm" name="first_name" value="<?= e($_POST['first_name'] ?? '') ?>" placeholder="Juan" required>
-                    </div>
-                    <div class="col-6 text-start">
-                        <label class="form-label small fw-semibold mb-1">Last Name</label>
-                        <input type="text" class="form-control form-control-sm" name="last_name" value="<?= e($_POST['last_name'] ?? '') ?>" placeholder="Dela Cruz" required>
-                    </div>
-                </div>
-
-                <div class="w-100 text-start mb-2">
-                    <label class="form-label small fw-semibold mb-1">Email Address</label>
-                    <input type="email" class="form-control form-control-sm" name="email" value="<?= e($_POST['email'] ?? '') ?>" placeholder="juan@example.com" required>
-                </div>
-
-                <div class="w-100 text-start mb-2">
-                    <label class="form-label small fw-semibold mb-1">Mobile Number</label>
-                    <input type="tel" class="form-control form-control-sm" name="phone_number" value="<?= e($_POST['phone_number'] ?? '') ?>" placeholder="09171234567" required>
-                </div>
-
-                <div class="row g-2 w-100 mb-3">
-                    <div class="col-6 text-start">
-                        <label class="form-label small fw-semibold mb-1">Password</label>
-                        <div class="input-group input-group-sm">
-                            <input type="password" class="form-control" id="reg_pw_home" name="password" placeholder="Min. 8 chars" required>
-                            <button class="btn btn-outline-secondary" type="button" data-password-toggle="reg_pw_home"><i class="bi bi-eye"></i></button>
-                        </div>
-                    </div>
-                    <div class="col-6 text-start">
-                        <label class="form-label small fw-semibold mb-1">Confirm</label>
-                        <div class="input-group input-group-sm">
-                            <input type="password" class="form-control" id="reg_cpw_home" name="confirm_password" placeholder="Repeat" required>
-                            <button class="btn btn-outline-secondary" type="button" data-password-toggle="reg_cpw_home"><i class="bi bi-eye"></i></button>
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 fw-bold shadow-sm">
-                    <i class="bi bi-person-check-fill me-1"></i> Register &amp; Verify OTP
-                </button>
-                <div class="d-block d-md-none mt-3">
-                    <a href="javascript:void(0)" onclick="toggleLandingToLogin()" class="text-primary small fw-semibold">Already registered? Sign In</a>
-                </div>
-            </form>
-        </div>
-
-        <!-- Login Form Box -->
-        <div class="form-container sign-in-container">
-            <form method="post" action="<?= url('index.php#account-access') ?>" class="auth-inner-form" novalidate>
-                <?= csrf_field() ?>
-                <input type="hidden" name="action" value="landing_login">
-
-                <div class="brand-icon-wrapper mb-2" style="width: 52px; height: 52px; font-size: 1.5rem; background: var(--primary-subtle, #ecfdf5); color: var(--primary, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <i class="bi bi-bus-front-fill"></i>
-                </div>
-                <h2 class="h3 fw-bold text-dark mb-1">Welcome Back</h2>
-                <p class="text-muted small mb-4">Sign in to your account with your email &amp; password.</p>
-
-                <?php if ($activeAuthTab === 'login' && $authErrors): ?>
-                    <div class="alert alert-danger py-2 px-3 border-0 shadow-sm small mb-3 w-100 text-start">
-                        <ul class="mb-0 ps-3">
-                            <?php foreach ($authErrors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <div class="w-100 text-start mb-3">
-                    <label class="form-label small fw-semibold">Email address</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
-                        <input type="email" class="form-control border-start-0 ps-0" name="email" value="<?= e($_POST['email'] ?? '') ?>" autocomplete="email" placeholder="name@example.com" required>
-                    </div>
-                </div>
-
-                <div class="w-100 text-start mb-4">
-                    <label class="form-label small fw-semibold">Password</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control border-start-0 border-end-0 ps-0" id="login_pw_home" name="password" autocomplete="current-password" placeholder="Enter password" required>
-                        <button class="btn btn-outline-secondary border-start-0" type="button" data-password-toggle="login_pw_home"><i class="bi bi-eye"></i></button>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary rounded-pill w-100 py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
-                    <i class="bi bi-box-arrow-in-right"></i> Sign In to Account
-                </button>
-                <div class="d-block d-md-none mt-3">
-                    <a href="javascript:void(0)" onclick="toggleLandingToRegister()" class="text-primary small fw-semibold">Need an account? Sign Up</a>
-                </div>
-            </form>
-        </div>
-
-        <!-- Sliding Cover Layer -->
-        <div class="overlay-container">
-            <div class="overlay">
-                <div class="overlay-panel overlay-left">
-                    <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small mb-3">Philippine Intercity Express</span>
-                    <h2 class="h2 fw-bold text-white mb-2">Welcome Back!</h2>
-                    <p class="text-white-50 px-4 small mb-4">Sign in with your email &amp; password to view your booked trips, digital boarding passes, and ticket receipts.</p>
-                    <button type="button" class="btn btn-outline-light rounded-pill px-5 py-2 fw-bold shadow-sm" onclick="toggleLandingToLogin()">
-                        <i class="bi bi-arrow-left me-1"></i> Sign In
-                    </button>
-                </div>
-
-                <div class="overlay-panel overlay-right">
-                    <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small mb-3">Instant Online Booking</span>
-                    <h2 class="h2 fw-bold text-white mb-2">Hello, Traveler!</h2>
-                    <p class="text-white-50 px-4 small mb-4">Register your passenger account today to select preferred bus seats, receive e-wallet tickets, and enjoy 20% discounts.</p>
-                    <button type="button" class="btn btn-outline-light rounded-pill px-5 py-2 fw-bold shadow-sm" onclick="toggleLandingToRegister()">
-                        Sign Up <i class="bi bi-arrow-right ms-1"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<?php endif; ?>
-
 <!-- Routes We Serve Section -->
+<section class="container py-5" id="routes">
 <section class="container py-5">
     <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
         <div>
