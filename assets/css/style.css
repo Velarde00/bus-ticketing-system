@@ -981,36 +981,190 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ==========================================================
-   Auth Cards (Login & Register - Interactive Sliding Container)
+   Scenic Fullscreen Background & Smooth Sliding Auth Container
    ========================================================== */
-.auth-split-wrapper {
-    max-width: 950px;
-    width: 100%;
-    min-height: 580px;
+.auth-page-scenic {
+    position: relative;
+    min-height: calc(100vh - 160px);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(10, 51, 44, 0.84) 50%, rgba(11, 21, 34, 0.92) 100%),
+                url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1920&q=85') center center / cover fixed no-repeat;
+    overflow: hidden;
+}
+
+.auth-floating-glow {
+    position: absolute;
+    width: 650px;
+    height: 650px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, rgba(56, 189, 248, 0.08) 50%, transparent 75%);
+    top: -150px;
+    left: 10%;
+    pointer-events: none;
+    filter: blur(40px);
+    animation: floatGlow 12s ease-in-out infinite alternate;
+}
+
+@keyframes floatGlow {
+    0% { transform: translateY(0) scale(1); }
+    100% { transform: translateY(60px) scale(1.1); }
+}
+
+.auth-container-sliding {
+    background-color: #FFFFFF;
+    border-radius: 28px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
     position: relative;
     overflow: hidden;
-    background: #FFFFFF;
+    width: 920px;
+    max-width: 95%;
+    min-height: 560px;
 }
 
-.auth-slider-panel {
-    transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+.form-container {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    transition: all 0.65s cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-.auth-hero-side {
-    background: linear-gradient(135deg, rgba(11, 21, 34, 0.92) 0%, rgba(15, 35, 52, 0.88) 50%, rgba(10, 51, 44, 0.94) 100%),
+.sign-in-container {
+    left: 0;
+    width: 50%;
+    z-index: 2;
+}
+
+.sign-up-container {
+    left: 0;
+    width: 50%;
+    opacity: 0;
+    z-index: 1;
+}
+
+.auth-inner-form {
+    background-color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 0 42px;
+    height: 100%;
+    text-align: center;
+}
+
+.auth-container-sliding.right-panel-active .sign-in-container {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.auth-container-sliding.right-panel-active .sign-up-container {
+    transform: translateX(100%);
+    opacity: 1;
+    z-index: 5;
+    animation: showSlide 0.65s;
+    pointer-events: all;
+}
+
+@keyframes showSlide {
+    0%, 49.99% {
+        opacity: 0;
+        z-index: 1;
+    }
+    50%, 100% {
+        opacity: 1;
+        z-index: 5;
+    }
+}
+
+.overlay-container {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 50%;
+    height: 100%;
+    overflow: hidden;
+    transition: transform 0.65s cubic-bezier(0.77, 0, 0.175, 1);
+    z-index: 100;
+}
+
+.auth-container-sliding.right-panel-active .overlay-container {
+    transform: translateX(-100%);
+}
+
+.overlay {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.94) 0%, rgba(15, 23, 42, 0.94) 100%),
                 url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80') center center / cover no-repeat;
     color: #FFFFFF;
     position: relative;
-    overflow: hidden;
+    left: -100%;
+    height: 100%;
+    width: 200%;
+    transform: translateX(0);
+    transition: transform 0.65s cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-.auth-card-modern {
-    max-width: 440px;
-    width: 100%;
+.auth-container-sliding.right-panel-active .overlay {
+    transform: translateX(50%);
 }
 
-.auth-card-wide {
-    max-width: 650px;
+.overlay-panel {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 0 45px;
+    text-align: center;
+    top: 0;
+    height: 100%;
+    width: 50%;
+    transform: translateX(0);
+    transition: transform 0.65s cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.overlay-left {
+    transform: translateX(-20%);
+}
+
+.auth-container-sliding.right-panel-active .overlay-left {
+    transform: translateX(0);
+}
+
+.overlay-right {
+    right: 0;
+    transform: translateX(0);
+}
+
+.auth-container-sliding.right-panel-active .overlay-right {
+    transform: translateX(20%);
+}
+
+/* Mobile responsive fallback */
+@media (max-width: 768px) {
+    .auth-container-sliding {
+        min-height: auto;
+        border-radius: 20px;
+    }
+    .overlay-container {
+        display: none;
+    }
+    .sign-in-container, .sign-up-container {
+        position: relative;
+        width: 100%;
+        left: 0 !important;
+        transform: none !important;
+        opacity: 1 !important;
+        display: block;
+    }
+    .auth-inner-form {
+        padding: 32px 20px;
+    }
+    .auth-container-sliding:not(.right-panel-active) .sign-up-container {
+        display: none;
+    }
+    .auth-container-sliding.right-panel-active .sign-in-container {
+        display: none;
+    }
 }
 
 /* ==========================================================
