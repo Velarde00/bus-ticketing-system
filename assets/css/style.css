@@ -545,14 +545,38 @@ h1, h2, h3, h4, h5, h6,
     color: var(--ink);
     height: 100%;
     box-shadow: var(--shadow-xs);
+    background-size: cover;
+    background-position: center right;
+    background-repeat: no-repeat;
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .route-card-modern:hover {
     transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
     border-color: #0E7C66;
     color: var(--ink);
+}
+
+.route-card-bus-watermark {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    width: 180px;
+    height: 100px;
+    background-size: cover;
+    background-position: center;
+    border-radius: var(--radius-md);
+    opacity: 0.16;
+    pointer-events: none;
+    filter: blur(0.5px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 0;
+}
+
+.route-card-modern:hover .route-card-bus-watermark {
+    opacity: 0.28;
+    transform: scale(1.06);
 }
 
 .route-badge-km {
@@ -647,6 +671,18 @@ h1, h2, h3, h4, h5, h6,
     background-position: center right !important;
     background-size: cover !important;
     min-height: 150px;
+}
+
+.gateway-security-badge {
+    background: rgba(0, 0, 0, 0.28) !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.gateway-security-badge span {
+    color: #FFFFFF !important;
 }
 
 .hero-pill-badge {

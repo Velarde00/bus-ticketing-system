@@ -100,12 +100,15 @@ $upcomingTrips = $pdo->query(
      LIMIT 8"
 )->fetchAll();
 
-// Routes with their lowest upcoming fare and next departure date/time
+// Routes with their lowest upcoming fare and next departure date/time, plus bus type of next departure
 $routes = $pdo->query(
     "SELECT r.route_id, r.origin, r.destination, r.distance_km,
             MIN(t.fare) AS from_fare,
             COUNT(t.trip_id) AS upcoming_trips,
-            MIN(t.departure_time) AS next_departure
+            MIN(t.departure_time) AS next_departure,
+            (SELECT b.bus_type FROM trips t2 JOIN buses b ON b.bus_id = t2.bus_id
+             WHERE t2.route_id = r.route_id AND t2.status = 'SCHEDULED' AND t2.departure_time > NOW()
+             ORDER BY t2.departure_time ASC LIMIT 1) AS next_bus_type
      FROM routes r
      LEFT JOIN trips t ON t.route_id = r.route_id AND t.status = 'SCHEDULED' AND t.departure_time > NOW()
      WHERE r.status = 'ACTIVE'
@@ -348,40 +351,45 @@ require __DIR__ . '/includes/header.php';
         <?php foreach ($routes as $r): ?>
             <?php
                 $nextDateParam = !empty($r['next_departure']) ? date('Y-m-d', strtotime($r['next_departure'])) : '';
+                $routeBusImg = url(bus_type_image($r['next_bus_type'] ?? 'Standard Regular Coach'));
             ?>
             <div class="col-md-6 col-xl-4">
-                <a class="route-card-modern"
+                <a class="route-card-modern position-relative overflow-hidden"
+                   style="background-image: linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.92) 55%, rgba(248,250,252,0.85) 100%), url('<?= e($routeBusImg) ?>');"
                    href="<?= is_logged_in() ? url('passenger/trip_results.php?origin=' . urlencode($r['origin']) . '&destination=' . urlencode($r['destination']) . '&date=' . e($nextDateParam)) : url('index.php#hero-portal') ?>">
-                    <div class="route-card-header d-flex justify-content-between align-items-center mb-2">
-                        <span class="route-badge-km"><i class="bi bi-signpost-split me-1"></i><?= e(number_format((float)$r['distance_km'])) ?> km</span>
-                        <?php if ($r['upcoming_trips'] > 0): ?>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                <i class="bi bi-clock me-1"></i><?= (int)$r['upcoming_trips'] ?> upcoming trip<?= $r['upcoming_trips'] > 1 ? 's' : '' ?>
-                            </span>
-                        <?php else: ?>
-                            <span class="badge bg-secondary-subtle text-muted">No upcoming trips</span>
-                        <?php endif; ?>
-                    </div>
-                    <div class="route-line-modern">
-                        <span class="origin-city"><?= e($r['origin']) ?></span>
-                        <div class="route-arrow-icon"><i class="bi bi-arrow-right"></i></div>
-                        <span class="destination-city"><?= e($r['destination']) ?></span>
-                    </div>
-
-                    <?php if (!empty($r['next_departure'])): ?>
-                        <div class="next-departure-tag small mt-2 p-2 bg-light rounded-2 border d-flex align-items-center justify-content-between">
-                            <span class="text-muted"><i class="bi bi-calendar2-check text-primary me-1"></i> Next departure:</span>
-                            <strong class="text-dark"><?= e(fmt_date($r['next_departure'])) ?> &bull; <?= e(fmt_time($r['next_departure'])) ?></strong>
+                    <div class="route-card-bus-watermark" style="background-image: url('<?= e($routeBusImg) ?>');"></div>
+                    <div class="position-relative z-1">
+                        <div class="route-card-header d-flex justify-content-between align-items-center mb-2">
+                            <span class="route-badge-km badge bg-white border text-muted shadow-xs"><i class="bi bi-signpost-split me-1"></i><?= e(number_format((float)$r['distance_km'])) ?> km</span>
+                            <?php if ($r['upcoming_trips'] > 0): ?>
+                                <span class="badge bg-success text-white shadow-xs">
+                                    <i class="bi bi-clock me-1"></i><?= (int)$r['upcoming_trips'] ?> upcoming trip<?= $r['upcoming_trips'] > 1 ? 's' : '' ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary-subtle text-muted">No upcoming trips</span>
+                            <?php endif; ?>
                         </div>
-                    <?php endif; ?>
+                        <div class="route-line-modern">
+                            <span class="origin-city"><?= e($r['origin']) ?></span>
+                            <div class="route-arrow-icon"><i class="bi bi-arrow-right"></i></div>
+                            <span class="destination-city"><?= e($r['destination']) ?></span>
+                        </div>
 
-                    <div class="route-card-footer d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
-                        <span class="text-muted small">Starting from</span>
-                        <?php if ($r['upcoming_trips'] > 0): ?>
-                            <span class="route-price"><?= money($r['from_fare']) ?></span>
-                        <?php else: ?>
-                            <span class="text-muted small">—</span>
+                        <?php if (!empty($r['next_departure'])): ?>
+                            <div class="next-departure-tag small mt-2 p-2 bg-white bg-opacity-75 rounded-2 border d-flex align-items-center justify-content-between shadow-xs">
+                                <span class="text-muted"><i class="bi bi-calendar2-check text-primary me-1"></i> Next departure:</span>
+                                <strong class="text-dark"><?= e(fmt_date($r['next_departure'])) ?> &bull; <?= e(fmt_time($r['next_departure'])) ?></strong>
+                            </div>
                         <?php endif; ?>
+
+                        <div class="route-card-footer d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                            <span class="text-muted small">Starting from</span>
+                            <?php if ($r['upcoming_trips'] > 0): ?>
+                                <span class="route-price"><?= money($r['from_fare']) ?></span>
+                            <?php else: ?>
+                                <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </a>
             </div>

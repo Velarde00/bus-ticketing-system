@@ -161,12 +161,12 @@ require __DIR__ . '/../includes/header.php';
     <!-- Modern Gateway Card -->
     <div class="card border-0 shadow-lg rounded-4 overflow-hidden mb-4">
         <!-- Gateway Header with Brand Colors -->
-        <div class="p-4 text-white text-center" style="background: linear-gradient(135deg, #059669 0%, #047857 100%);">
-            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 bg-white bg-opacity-20 rounded-pill mb-2">
+        <div class="p-4 text-white text-center" style="background: linear-gradient(135deg, #0E7C66 0%, #095C4C 100%);">
+            <div class="gateway-security-badge d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-2">
                 <i class="bi bi-shield-lock-fill text-warning"></i>
                 <span class="small fw-semibold letter-spacing-sm">256-BIT ENCRYPTED GATEWAY</span>
             </div>
-            <h1 class="h4 fw-bold mb-1">Verify Your Online Payment</h1>
+            <h1 class="h4 fw-bold mb-1 text-white">Verify Your Online Payment</h1>
             <p class="small text-white-50 mb-0">Booking Reference: <strong class="text-white font-monospace"><?= e($booking['booking_reference']) ?></strong></p>
         </div>
 
