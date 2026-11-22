@@ -90,6 +90,90 @@ function fmt_time(?string $value): string
     return $value ? date('g:i A', strtotime($value)) : '—';
 }
 
+function online_payment_option_label(?string $option): string
+{
+    return [
+        'GCASH' => 'GCash',
+        'MAYA' => 'Maya',
+        'MARIBANK' => 'MariBank',
+        'BANK_TRANSFER' => 'Online Bank Transfer (BPI / UnionBank)',
+    ][$option ?? ''] ?? 'Not specified';
+}
+
+/**
+ * Disburse automated instant refund via Simulated Payment Gateway API (GCash/Maya/Bank API).
+ * Automatically generates external gateway transaction tracking ID and timestamp.
+ */
+function process_automated_api_refund(PDO $pdo, int $paymentId, ?string $destination = null): array
+{
+    $stmt = $pdo->prepare(
+        "SELECT p.payment_id, p.amount, p.booking_id, p.payment_status, p.payment_method,
+                bk.booking_reference, bk.user_id,
+                u.first_name, u.last_name, u.email, u.phone_number
+         FROM payments p
+         JOIN bookings bk ON bk.booking_id = p.booking_id
+         JOIN users u ON u.user_id = bk.user_id
+         WHERE p.payment_id = :id FOR UPDATE"
+    );
+    $stmt->execute([':id' => $paymentId]);
+    $payment = $stmt->fetch();
+
+    if (!$payment) {
+        throw new RuntimeException('Payment record not found.');
+    }
+
+    if ($payment['payment_status'] === 'REFUNDED') {
+        throw new RuntimeException('This payment has already been refunded.');
+    }
+
+    $passengerName = trim($payment['first_name'] . ' ' . $payment['last_name']);
+    $accountNumber = $destination ?: ($payment['phone_number'] ?: '09171234567');
+
+    // Generate automated Payment Gateway API Transaction & Trace ID
+    $gatewayRefNo = 'TXN-API-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 8));
+
+    // Update payment record in database directly via API simulation
+    $pdo->prepare(
+        "UPDATE payments
+         SET payment_status = 'REFUNDED',
+             refund_payment_option = 'GCASH',
+             refund_account_name = :acct_name,
+             refund_account_number = :acct_num,
+             refund_transfer_reference = :ref_no,
+             refund_processed_at = NOW(),
+             payment_date = NOW()
+         WHERE payment_id = :id"
+    )->execute([
+        ':acct_name' => $passengerName,
+        ':acct_num'  => $accountNumber,
+        ':ref_no'    => $gatewayRefNo,
+        ':id'        => $paymentId,
+    ]);
+
+    // Update booking cancellation choice status
+    $pdo->prepare("UPDATE bookings SET cancellation_choice = 'REFUND_REQUESTED' WHERE booking_id = :bid")
+        ->execute([':bid' => $payment['booking_id']]);
+
+    // Send instant notification to passenger
+    send_user_notification(
+        $pdo,
+        (int)$payment['user_id'],
+        "Refund Processed Directly ({$gatewayRefNo})",
+        "A full automated refund of " . money($payment['amount']) . " for booking {$payment['booking_reference']} has been sent directly to your account ({$accountNumber}) via payment gateway. Trace ID: {$gatewayRefNo}.",
+        "passenger/booking_confirmation.php?booking_id=" . (int)$payment['booking_id'],
+        $payment['email'] ?? null
+    );
+
+    return [
+        'success'      => true,
+        'reference_no' => $gatewayRefNo,
+        'amount'       => (float)$payment['amount'],
+        'passenger'    => $passengerName,
+        'account'      => $accountNumber,
+        'booking_ref'  => $payment['booking_reference'],
+    ];
+}
+
 /** Keep what the user typed in a form after an error. */
 function old(string $key, string $default = ''): string
 {
@@ -107,6 +191,7 @@ function status_badge(string $status): string
         'FAILED'      => ['danger', 'bi-exclamation-octagon-fill'],
         'REFUNDED'    => ['info', 'bi-arrow-counterclockwise'],
         'SCHEDULED'   => ['primary', 'bi-calendar2-check-fill'],
+        'SOLD OUT'    => ['danger', 'bi-x-circle-fill'],
         'COMPLETED'   => ['success', 'bi-flag-fill'],
         'ACTIVE'      => ['success', 'bi-check2-circle'],
         'INACTIVE'    => ['secondary', 'bi-dash-circle'],
@@ -145,11 +230,13 @@ function passenger_type_label(string $type): string
 }
 
 /**
- * Generates and stores a 6-digit OTP for Email & Mobile Number delivery.
- * Supports mail() sending and local inbox delivery.
+ * Generates and stores a 6-digit OTP for Email or Mobile Number delivery.
+ * Supports passenger channel selection ('EMAIL' or 'SMS').
  */
-function create_and_dispatch_otp(PDO $pdo, string $email, string $phone, string $purpose, ?int $userId = null, ?int $referenceId = null): array
+function create_and_dispatch_otp(PDO $pdo, string $email, string $phone, string $purpose, ?int $userId = null, ?int $referenceId = null, string $channel = 'EMAIL'): array
 {
+    $channel = strtoupper($channel) === 'SMS' ? 'SMS' : 'EMAIL';
+
     // Generate secure 6-digit OTP
     $code = sprintf('%06d', random_int(100000, 999999));
     $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes validity
@@ -172,12 +259,16 @@ function create_and_dispatch_otp(PDO $pdo, string $email, string $phone, string 
         ':expires' => $expiresAt
     ]);
 
-    // Dispatch via email
-    $subject = $purpose === 'LOGIN' ? 'Your BusTicket Sign-In OTP' : 'BusTicket Payment Verification OTP';
-    $message = "Hello,\r\n\r\nYour One-Time Password (OTP) is: $code\r\n\r\nThis code is valid for 10 minutes.\r\nIf you did not request this code, please ignore this email.\r\n\r\nThank you,\r\nBusTicket Reservation System";
-    $headers = "From: noreply@busticket.ph\r\nReply-To: support@busticket.ph\r\nX-Mailer: PHP/" . phpversion();
-
-    @mail($email, $subject, $message, $headers);
+    // Dispatch via chosen channel
+    if ($channel === 'EMAIL') {
+        $subject = $purpose === 'REGISTRATION' ? 'Your BusTicket Registration OTP' : ($purpose === 'LOGIN' ? 'Your BusTicket Sign-In OTP' : 'BusTicket Payment Verification OTP');
+        $message = "Hello,\r\n\r\nYour One-Time Password (OTP) is: $code\r\n\r\nThis code is valid for 10 minutes.\r\nIf you did not request this code, please ignore this email.\r\n\r\nThank you,\r\nBusTicket Reservation System";
+        $headers = "From: noreply@busticket.ph\r\nReply-To: support@busticket.ph\r\nX-Mailer: PHP/" . phpversion();
+        @mail($email, $subject, $message, $headers);
+    } else {
+        // SMS Gateway dispatch simulation (logs or SMS API)
+        error_log("SMS OTP dispatched to {$phone}: {$code} (Valid for 10 mins)");
+    }
 
     // Mask phone and email for display
     $maskedEmail = preg_replace('/(?<=.{2}).(?=.*@)/u', '*', $email);
@@ -186,6 +277,7 @@ function create_and_dispatch_otp(PDO $pdo, string $email, string $phone, string 
     return [
         'code'         => $code,
         'expires_at'   => $expiresAt,
+        'channel'      => $channel,
         'masked_email' => $maskedEmail,
         'masked_phone' => $maskedPhone,
     ];

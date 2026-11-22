@@ -9,7 +9,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_role('ADMIN');
 
-const WALK_IN_MAX_SEATS = 10;
+const WALK_IN_MAX_SEATS = 999;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('admin/reservations/index.php');

@@ -47,11 +47,23 @@ require __DIR__ . '/../../includes/header.php';
                     <td><?= e(fmt_date($passenger['created_at'])) ?></td>
                     <td><?= status_badge($passenger['account_status']) ?></td>
                     <td class="text-end">
-                        <form method="post" class="d-inline">
-                            <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$passenger['user_id'] ?>">
-                            <input type="hidden" name="status" value="<?= $passenger['account_status'] === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' ?>">
-                            <button class="btn btn-outline-dark btn-sm" type="submit"><?= $passenger['account_status'] === 'ACTIVE' ? 'Deactivate' : 'Activate' ?></button>
-                        </form>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-light btn-sm rounded-circle p-2 shadow-xs border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-1">
+                                <li>
+                                    <form method="post">
+                                        <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$passenger['user_id'] ?>">
+                                        <input type="hidden" name="status" value="<?= $passenger['account_status'] === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' ?>">
+                                        <button class="dropdown-item py-2 px-3 small d-flex align-items-center gap-2 <?= $passenger['account_status'] === 'ACTIVE' ? 'text-danger' : 'text-success' ?>" type="submit">
+                                            <i class="bi <?= $passenger['account_status'] === 'ACTIVE' ? 'bi-person-x text-danger' : 'bi-person-check text-success' ?>"></i>
+                                            <?= $passenger['account_status'] === 'ACTIVE' ? 'Deactivate Account' : 'Activate Account' ?>
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

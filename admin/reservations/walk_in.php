@@ -118,7 +118,7 @@ require __DIR__ . '/../../includes/header.php';
 
 <!-- Steps 2–4: main booking form -->
 <form method="post" action="<?= url('actions/admin_walk_in_booking.php') ?>" id="walkInForm"
-      data-fare="<?= e($tripData['fare']) ?>" data-max="10">
+      data-fare="<?= e($tripData['fare']) ?>" data-max="999">
     <?= csrf_field() ?>
     <input type="hidden" name="trip_id" value="<?= (int)$tripId ?>">
 
@@ -133,10 +133,30 @@ require __DIR__ . '/../../includes/header.php';
                 </div>
                 <div class="p-4">
                     <!-- Legend -->
-                    <div class="seat-legend-modern mb-4 p-2 bg-light rounded-pill d-flex justify-content-center gap-3 gap-md-4">
+                    <div class="seat-legend-modern mb-3 p-2 bg-light rounded-pill d-flex justify-content-center gap-3 gap-md-4">
                         <div class="d-flex align-items-center gap-2 small"><span class="legend-seat-sample legend-free"></span><span>Available</span></div>
                         <div class="d-flex align-items-center gap-2 small"><span class="legend-seat-sample legend-selected"></span><span>Selected</span></div>
                         <div class="d-flex align-items-center gap-2 small"><span class="legend-seat-sample legend-taken"></span><span>Occupied</span></div>
+                    </div>
+
+                    <!-- Type or Quick Enter Seat Numbers -->
+                    <div class="mb-4 p-3 bg-light rounded-3 border">
+                        <label for="wiSeatInputQuick" class="form-label small fw-semibold text-dark mb-1 d-flex align-items-center gap-1">
+                            <i class="bi bi-keyboard text-primary"></i> Type Seat Number(s)
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="wiSeatInputQuick" class="form-control" placeholder="e.g. 5, 6, 12 or 1-4" autocomplete="off">
+                            <button type="button" id="wiBtnApplyTypedSeats" class="btn btn-primary px-3 fw-semibold">
+                                <i class="bi bi-plus-lg me-1"></i> Apply
+                            </button>
+                            <button type="button" id="wiBtnClearTypedSeats" class="btn btn-outline-secondary px-2" title="Clear all selected seats">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="text-muted" style="font-size:0.75rem;">Enter seat numbers separated by commas or ranges (e.g. 1-4, 7, 9)</span>
+                            <span id="wiTypedSeatsMsg" class="small fw-semibold" style="font-size:0.75rem;"></span>
+                        </div>
                     </div>
 
                     <!-- Bus Shell -->
@@ -255,11 +275,11 @@ require __DIR__ . '/../../includes/header.php';
                     <!-- Per-seat passenger type (dynamic, rendered by JS) -->
                     <div id="wiPassengerDetailsSection" class="mt-4" style="display:none;">
                         <hr class="my-3">
-                        <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
                             <span class="form-label mb-0 small fw-semibold text-dark">Passenger Type per Seat</span>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle small">20% discount for Student / Senior / PWD</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle small">20% off for Student / Senior / PWD</span>
                         </div>
-                        <div id="wiPassengerDetailsRows" class="d-flex flex-column gap-2"></div>
+                        <div id="wiPassengerDetailsRows" class="d-flex flex-column gap-2" style="max-height: 260px; overflow-y: auto; padding-right: 4px;"></div>
                     </div>
                 </div>
             </div>
@@ -356,16 +376,6 @@ require __DIR__ . '/../../includes/header.php';
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-semibold mb-2">Payment Status</label>
-                    <div class="p-3 bg-success-subtle text-success border border-success-subtle rounded-3 d-flex align-items-center gap-2">
-                        <i class="bi bi-check-circle-fill fs-5"></i>
-                        <div>
-                            <div class="fw-semibold small">Automatic Status: Paid &amp; Confirmed</div>
-                            <div class="text-success-emphasis" style="font-size: 0.72rem;">Payment is recorded as paid immediately. Tickets and boarding passes are automatically generated.</div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Submit -->
                 <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2" id="wiConfirmBtn" disabled>
@@ -539,13 +549,110 @@ require __DIR__ . '/../../includes/header.php';
 
     boxes.forEach(function (b) {
         b.addEventListener('change', function () {
-            if (form.querySelectorAll('.seat-input:checked').length > max) {
+            if (max > 0 && form.querySelectorAll('.seat-input:checked').length > max) {
                 b.checked = false;
                 alert('Walk-in bookings are limited to ' + max + ' seats.');
             }
             update();
         });
     });
+
+    // --- Typing seats directly ---
+    var wiQuickInput = document.getElementById('wiSeatInputQuick');
+    var wiApplyBtn   = document.getElementById('wiBtnApplyTypedSeats');
+    var wiClearBtn   = document.getElementById('wiBtnClearTypedSeats');
+    var wiMsgSpan    = document.getElementById('wiTypedSeatsMsg');
+
+    function parseSeatTokens(str) {
+        var result = [];
+        var parts = str.split(/[,;\s]+/);
+        parts.forEach(function (p) {
+            p = p.trim();
+            if (!p) return;
+            if (p.indexOf('-') !== -1) {
+                var range = p.split('-');
+                if (range.length === 2) {
+                    var rStart = parseInt(range[0], 10);
+                    var rEnd   = parseInt(range[1], 10);
+                    if (!isNaN(rStart) && !isNaN(rEnd)) {
+                        var min = Math.min(rStart, rEnd);
+                        var max = Math.max(rStart, rEnd);
+                        for (var i = min; i <= max; i++) result.push(i);
+                    }
+                }
+            } else {
+                var num = parseInt(p, 10);
+                if (!isNaN(num)) result.push(num);
+            }
+        });
+        return result;
+    }
+
+    if (wiApplyBtn && wiQuickInput) {
+        function applyWiTyped() {
+            var val = wiQuickInput.value.trim();
+            if (!val) return;
+            var requested = parseSeatTokens(val);
+            if (requested.length === 0) {
+                if (wiMsgSpan) { wiMsgSpan.className = 'small fw-semibold text-danger'; wiMsgSpan.textContent = 'Invalid seat format.'; }
+                return;
+            }
+
+            var added = 0;
+            var taken = 0;
+            var notFound = 0;
+
+            requested.forEach(function (num) {
+                var box = document.getElementById('wi-seat-' + num);
+                if (!box) {
+                    notFound++;
+                } else if (box.disabled) {
+                    taken++;
+                } else {
+                    if (!box.checked) {
+                        box.checked = true;
+                        added++;
+                    }
+                }
+            });
+
+            update();
+            wiQuickInput.value = '';
+
+            if (wiMsgSpan) {
+                if (notFound > 0 || taken > 0) {
+                    wiMsgSpan.className = 'small fw-semibold text-warning';
+                    wiMsgSpan.textContent = (added > 0 ? added + ' seat(s) selected. ' : '') +
+                        (taken > 0 ? taken + ' already occupied. ' : '') +
+                        (notFound > 0 ? notFound + ' do not exist.' : '');
+                } else {
+                    wiMsgSpan.className = 'small fw-semibold text-success';
+                    wiMsgSpan.textContent = added > 0 ? added + ' seat(s) added!' : 'Seats already selected.';
+                }
+                setTimeout(function () { wiMsgSpan.textContent = ''; }, 4000);
+            }
+        }
+
+        wiApplyBtn.addEventListener('click', applyWiTyped);
+        wiQuickInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyWiTyped();
+            }
+        });
+    }
+
+    if (wiClearBtn) {
+        wiClearBtn.addEventListener('click', function () {
+            boxes.forEach(function (b) { if (!b.disabled) b.checked = false; });
+            update();
+            if (wiMsgSpan) {
+                wiMsgSpan.className = 'small fw-semibold text-muted';
+                wiMsgSpan.textContent = 'Selections cleared.';
+                setTimeout(function () { wiMsgSpan.textContent = ''; }, 3000);
+            }
+        });
+    }
 
     update();
 })();

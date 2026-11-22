@@ -253,9 +253,20 @@ require __DIR__ . '/../includes/header.php';
                         <td><span class="small text-muted"><?= e(fmt_datetime($b['booking_date'])) ?></span></td>
                         <td><?= status_badge($b['status']) ?></td>
                         <td class="text-end pe-4">
-                            <a class="btn btn-outline-dark btn-sm rounded-pill px-3" href="<?= url('admin/reservations/view.php?id=' . (int)$b['booking_id']) ?>">
-                                Details
-                            </a>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-light btn-sm rounded-circle p-2 shadow-xs border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-1">
+                                    <li>
+                                        <button type="button" class="dropdown-item py-2 px-3 small d-flex align-items-center gap-2 btn-view-reservation"
+                                                data-id="<?= (int)$b['booking_id'] ?>"
+                                                data-ref="<?= e($b['booking_reference']) ?>">
+                                            <i class="bi bi-eye text-primary"></i> View Details
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -264,4 +275,66 @@ require __DIR__ . '/../includes/header.php';
         </div>
     <?php endif; ?>
 </div>
+
+<!-- Modal for Reservation Details -->
+<div class="modal fade" id="reservationDetailsModal" tabindex="-1" aria-labelledby="reservationDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom px-4 pt-4 pb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="stat-icon-wrapper bg-primary-subtle text-primary">
+                        <i class="bi bi-ticket-perforated"></i>
+                    </span>
+                    <h5 class="modal-title fw-bold text-dark mb-0" id="reservationDetailsModalLabel">
+                        Reservation Details
+                    </h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 py-4" id="reservationDetailsModalBody">
+                <div class="text-center py-5 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    Loading reservation details...
+                </div>
+            </div>
+            <div class="modal-footer border-top px-4 py-3 bg-light bg-opacity-50">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modalEl = document.getElementById('reservationDetailsModal');
+    var modalBody = document.getElementById('reservationDetailsModalBody');
+    var modalLabel = document.getElementById('reservationDetailsModalLabel');
+    var bsModal = modalEl && typeof bootstrap !== 'undefined' ? new bootstrap.Modal(modalEl) : null;
+
+    document.querySelectorAll('.btn-view-reservation').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var id = this.getAttribute('data-id');
+            var ref = this.getAttribute('data-ref');
+
+            if (modalLabel) modalLabel.textContent = 'Reservation ' + ref;
+            if (modalBody) {
+                modalBody.innerHTML = '<div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>Loading reservation details...</div>';
+            }
+
+            if (bsModal) bsModal.show();
+
+            fetch('<?= url("admin/reservations/view.php") ?>?id=' + encodeURIComponent(id) + '&modal=1')
+                .then(function (res) { return res.text(); })
+                .then(function (html) {
+                    if (modalBody) modalBody.innerHTML = html;
+                })
+                .catch(function () {
+                    if (modalBody) {
+                        modalBody.innerHTML = '<div class="alert alert-danger mb-0">Failed to load reservation details. Please try again.</div>';
+                    }
+                });
+        });
+    });
+});
+</script>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

@@ -35,37 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Processing refund directly to e-wallet
             if ($status === 'REFUNDED') {
-                $refNo = 'REF-EW-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 8));
-                
-                $pdo->prepare(
-                    "UPDATE payments
-                     SET payment_status = 'REFUNDED',
-                         refund_payment_option = 'GCASH',
-                         refund_account_name = :acct_name,
-                         refund_account_number = :acct_num,
-                         refund_transfer_reference = :ref_no,
-                         refund_processed_at = NOW(),
-                         payment_date = NOW()
-                     WHERE payment_id = :id"
-                )->execute([
-                    ':acct_name' => $curr['passenger_name'],
-                    ':acct_num'  => $curr['phone_number'] ?: '09123456789',
-                    ':ref_no'    => $refNo,
-                    ':id'        => $paymentId,
-                ]);
-
-                // Notify passenger about their e-wallet refund
-                $notif = $pdo->prepare(
-                    "INSERT INTO notifications (user_id, title, message, link) VALUES (:uid, :title, :msg, :link)"
-                );
-                $notif->execute([
-                    ':uid'   => $curr['user_id'],
-                    ':title' => "Refund Sent to Your E-Wallet ({$refNo})",
-                    ':msg'   => "A full refund of " . money($curr['amount']) . " for booking {$curr['booking_reference']} has been sent to your registered E-Wallet ({$curr['phone_number']}). Ref: {$refNo}.",
-                    ':link'  => "passenger/booking_confirmation.php?booking_id=" . (int)$curr['booking_id'],
-                ]);
-
-                set_flash('success', "Refund of " . money($curr['amount']) . " processed and sent directly to {$curr['passenger_name']}'s E-Wallet ({$curr['phone_number']}). Ref: {$refNo}.");
+                $result = process_automated_api_refund($pdo, $paymentId);
+                set_flash('success', "Refund of " . money($result['amount']) . " disbursed automatically via Payment API to {$result['passenger']} ({$result['account']}). Gateway Ref: {$result['reference_no']}.");
                 redirect('admin/payments/index.php');
             } else {
                 // Normal update
@@ -310,20 +281,32 @@ require __DIR__ . '/../../includes/header.php';
                     </td>
                     <td class="small text-muted"><?= e(fmt_datetime($payment['payment_date'])) ?></td>
                     <td class="pe-4 text-end">
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill small me-1">
-                            <i class="bi bi-shield-check me-1"></i> Auto-Managed
-                        </span>
-                        <?php if ($eligibleForRefund && $payment['payment_status'] !== 'REFUNDED'): ?>
-                            <form method="post" class="d-inline" data-confirm="Disburse full refund of <?= money($payment['amount']) ?> directly to <?= e($payment['passenger']) ?>'s E-Wallet (<?= e($payment['phone_number']) ?>)?">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="payment_id" value="<?= (int)$payment['payment_id'] ?>">
-                                <input type="hidden" name="payment_status" value="REFUNDED">
-                                <input type="hidden" name="payment_method" value="E_WALLET">
-                                <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3 shadow-sm" title="Send refund to passenger's E-Wallet">
-                                    <i class="bi bi-phone me-1"></i> Send to E-Wallet
-                                </button>
-                            </form>
-                        <?php endif; ?>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-light btn-sm rounded-circle p-2 shadow-xs border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-1">
+                                <li>
+                                    <a class="dropdown-item py-2 px-3 small d-flex align-items-center gap-2" href="<?= url('admin/reservations/view.php?id=' . (int)$payment['booking_id']) ?>">
+                                        <i class="bi bi-ticket-perforated text-primary"></i> View Reservation
+                                    </a>
+                                </li>
+                                <?php if ($eligibleForRefund && $payment['payment_status'] !== 'REFUNDED'): ?>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li>
+                                        <form method="post" data-confirm="Disburse full refund of <?= money($payment['amount']) ?> directly to <?= e($payment['passenger']) ?>'s E-Wallet (<?= e($payment['phone_number']) ?>)?">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="payment_id" value="<?= (int)$payment['payment_id'] ?>">
+                                            <input type="hidden" name="payment_status" value="REFUNDED">
+                                            <input type="hidden" name="payment_method" value="E_WALLET">
+                                            <button type="submit" class="dropdown-item py-2 px-3 small text-danger d-flex align-items-center gap-2">
+                                                <i class="bi bi-phone text-danger"></i> Disburse E-Wallet Refund
+                                            </button>
+                                        </form>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

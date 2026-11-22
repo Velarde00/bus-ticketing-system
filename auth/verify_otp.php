@@ -19,11 +19,13 @@ $errors = [];
 
 // Handle Resend Request
 if (isset($_GET['resend']) && $_GET['resend'] === '1') {
-    $newOtp = create_and_dispatch_otp($pdo, $pending['email'], $pending['phone_number'], 'REGISTRATION');
+    $channel = ($_GET['channel'] ?? ($pending['channel'] ?? 'EMAIL')) === 'SMS' ? 'SMS' : 'EMAIL';
+    $newOtp = create_and_dispatch_otp($pdo, $pending['email'], $pending['phone_number'], 'REGISTRATION', null, null, $channel);
     $_SESSION['pending_registration']['code'] = $newOtp['code'];
     $_SESSION['pending_registration']['expires_at'] = $newOtp['expires_at'];
+    $_SESSION['pending_registration']['channel'] = $channel;
     $pending = $_SESSION['pending_registration'];
-    set_flash('success', 'A fresh 6-digit code has been dispatched to your email and mobile number.');
+    set_flash('success', "A fresh 6-digit code has been dispatched to your {$channel}.");
     redirect('auth/verify_otp.php');
 }
 
@@ -95,13 +97,25 @@ require __DIR__ . '/../includes/header.php';
 
         <!-- Destination Details Chip -->
         <div class="p-3 bg-light rounded-4 border mb-4">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small"><i class="bi bi-envelope text-primary me-2"></i>Email Address:</span>
-                <span class="fw-semibold text-dark font-monospace small"><?= e($pending['masked_email']) ?></span>
+            <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                <span class="text-muted small">Sent via:</span>
+                <span class="badge bg-primary rounded-pill px-3 py-1 font-monospace">
+                    <?= ($pending['channel'] ?? 'EMAIL') === 'SMS' ? '<i class="bi bi-phone me-1"></i> SMS to ' . e($pending['masked_phone']) : '<i class="bi bi-envelope me-1"></i> Email to ' . e($pending['masked_email']) ?>
+                </span>
             </div>
-            <div class="d-flex align-items-center justify-content-between">
-                <span class="text-muted small"><i class="bi bi-phone text-primary me-2"></i>Mobile Number:</span>
-                <span class="fw-semibold text-dark font-monospace small"><?= e($pending['masked_phone']) ?></span>
+            <div class="d-flex align-items-center justify-content-between small text-muted">
+                <span>Switch delivery method:</span>
+                <div>
+                    <?php if (($pending['channel'] ?? 'EMAIL') === 'EMAIL'): ?>
+                        <a href="<?= url('auth/verify_otp.php?resend=1&channel=SMS') ?>" class="text-primary text-decoration-none fw-semibold">
+                            <i class="bi bi-phone me-1"></i>Send to Mobile instead
+                        </a>
+                    <?php else: ?>
+                        <a href="<?= url('auth/verify_otp.php?resend=1&channel=EMAIL') ?>" class="text-primary text-decoration-none fw-semibold">
+                            <i class="bi bi-envelope me-1"></i>Send to Email instead
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 

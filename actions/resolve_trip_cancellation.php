@@ -61,24 +61,10 @@ try {
             $pdo->prepare("UPDATE bookings SET cancellation_choice = 'REFUND_REQUESTED' WHERE booking_id = :id")
                 ->execute([':id' => $bookingId]);
         }
-        $pdo->prepare(
-            "UPDATE payments SET payment_status = 'REFUND_REQUESTED',
-                refund_payment_option = :option, refund_account_name = :name,
-                refund_account_number = :number
-             WHERE payment_id = :id"
-        )->execute([
-            ':option' => $refundOption,
-            ':name' => $refundAccountName,
-            ':number' => $refundAccountNumber,
-            ':id' => $booking['payment_id'],
-        ]);
-        notify_active_roles(
-            $pdo,
-            ['ADMIN', 'SUPER_ADMIN'],
-            'Refund requested',
-            'A refund was requested for booking ' . $booking['booking_reference'] . '.',
-            'admin/refunds/index.php'
-        );
+        $res = process_automated_api_refund($pdo, (int)$booking['payment_id'], $booking['phone_number'] ?? null);
+        $pdo->commit();
+        set_flash('success', 'Your refund request has been automatically approved and disbursed via Payment Gateway API. Trace ID: ' . $res['reference_no']);
+        redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);
     } else {
         $pdo->prepare("UPDATE bookings SET cancellation_choice = 'REBOOK_REQUESTED' WHERE booking_id = :id")
             ->execute([':id' => $bookingId]);

@@ -281,7 +281,11 @@ require __DIR__ . '/../includes/header.php';
                         <!-- Card Footer: Seats, Fare, Action Button -->
                         <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-2 gap-2 position-relative z-1">
                             <div>
-                                <?php if ($left <= 5): ?>
+                                <?php if ($left <= 0): ?>
+                                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-x-circle me-1"></i> Sold out
+                                    </span>
+                                <?php elseif ($left <= 5): ?>
                                     <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill small">
                                         <i class="bi bi-fire me-1"></i> Only <?= $left ?> seats left
                                     </span>

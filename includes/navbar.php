@@ -3,9 +3,20 @@
 $user = current_user();
 $currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
 $initials = 'U';
+$unreadNotifCount = 0;
+
 if ($user && !empty($user['name'])) {
     $parts = preg_split('/\s+/', trim($user['name']));
     $initials = strtoupper(substr($parts[0] ?? '', 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
+    
+    // Check for unread notifications count
+    try {
+        $notifStmt = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = :uid AND read_at IS NULL');
+        $notifStmt->execute([':uid' => (int)$user['id']]);
+        $unreadNotifCount = (int)$notifStmt->fetchColumn();
+    } catch (Throwable) {
+        $unreadNotifCount = 0;
+    }
 }
 ?>
 <nav class="navbar navbar-expand-lg site-nav sticky-top">
@@ -36,8 +47,13 @@ if ($user && !empty($user['name'])) {
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?= $currentScript === 'notifications.php' ? 'active' : '' ?>" href="<?= url('passenger/notifications.php') ?>">
+                        <a class="nav-link position-relative <?= $currentScript === 'notifications.php' ? 'active' : '' ?>" href="<?= url('passenger/notifications.php') ?>">
                             <i class="bi bi-bell me-1 text-muted"></i> Notifications
+                            <?php if ($unreadNotifCount > 0): ?>
+                                <span class="badge rounded-pill bg-danger ms-1" style="font-size: 0.72rem; padding: 0.25em 0.55em;">
+                                    <?= $unreadNotifCount > 99 ? '99+' : $unreadNotifCount ?>
+                                </span>
+                            <?php endif; ?>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -81,14 +97,20 @@ if ($user && !empty($user['name'])) {
                             </li>
                             <?php if ($user['role'] === 'PASSENGER'): ?>
                                 <li>
-                                    <a class="dropdown-item py-2" href="<?= url('passenger/notifications.php') ?>">
-                                        <i class="bi bi-bell me-2 text-primary"></i> Notifications
+                                    <a class="dropdown-item py-2 d-flex align-items-center justify-content-between" href="<?= url('passenger/notifications.php') ?>">
+                                        <span><i class="bi bi-bell me-2 text-primary"></i> Notifications</span>
+                                        <?php if ($unreadNotifCount > 0): ?>
+                                            <span class="badge bg-danger rounded-pill"><?= $unreadNotifCount ?></span>
+                                        <?php endif; ?>
                                     </a>
                                 </li>
                             <?php else: ?>
                                 <li>
-                                    <a class="dropdown-item py-2" href="<?= url('admin/notifications/index.php') ?>">
-                                        <i class="bi bi-bell me-2 text-primary"></i> Notifications &amp; Alerts
+                                    <a class="dropdown-item py-2 d-flex align-items-center justify-content-between" href="<?= url('admin/notifications/index.php') ?>">
+                                        <span><i class="bi bi-bell me-2 text-primary"></i> Notifications &amp; Alerts</span>
+                                        <?php if ($unreadNotifCount > 0): ?>
+                                            <span class="badge bg-danger rounded-pill"><?= $unreadNotifCount ?></span>
+                                        <?php endif; ?>
                                     </a>
                                 </li>
                             <?php endif; ?>
@@ -103,6 +125,13 @@ if ($user && !empty($user['name'])) {
                             </li>
                         </ul>
                     </div>
+                <?php else: ?>
+                    <a href="<?= url('auth/login.php') ?>" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-semibold">
+                        <i class="bi bi-box-arrow-in-right me-1 text-primary"></i> Sign In
+                    </a>
+                    <a href="<?= url('auth/register.php') ?>" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm fw-semibold">
+                        <i class="bi bi-person-plus me-1"></i> Register
+                    </a>
                 <?php endif; ?>
             </div>
         </div>

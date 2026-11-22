@@ -208,9 +208,9 @@ $phCities = [
         <h1 class="h3 fw-bold mb-1 text-dark">Manage Routes</h1>
         <p class="text-muted small mb-0">Add, update, and maintain bus routes. Distance is auto-calculated when you pick both cities.</p>
     </div>
-    <a class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" href="<?= url('admin/routes/index.php') ?>">
+    <button type="button" class="btn btn-primary btn-sm rounded-pill shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#routeModal" id="btnOpenAddModal">
         <i class="bi bi-plus-lg me-1"></i> New Route
-    </a>
+    </button>
 </div>
 
 <?php if ($errors): ?>
@@ -221,162 +221,183 @@ $phCities = [
     </div>
 <?php endif; ?>
 
-<div class="row g-4">
-    <!-- Left: Form -->
-    <div class="col-xl-4">
-        <form method="post" class="panel bg-white p-4 rounded-4 border shadow-sm" id="routeForm">
-            <?= csrf_field() ?>
-            <input type="hidden" name="action" value="save">
-            <input type="hidden" name="id" value="<?= (int)($record['route_id'] ?? $editId ?? 0) ?>">
-
-            <div class="d-flex align-items-center gap-2 mb-4 pb-2 border-bottom">
-                <span class="stat-icon-wrapper bg-primary-subtle text-primary">
-                    <i class="bi bi-signpost-split"></i>
-                </span>
-                <h2 class="h5 fw-bold mb-0 text-dark"><?= $record ? 'Edit Route' : 'Add New Route' ?></h2>
-            </div>
-
-            <!-- Origin -->
-            <div class="mb-3">
-                <label class="form-label small fw-semibold" for="origin">
-                    <i class="bi bi-geo-alt-fill text-primary me-1"></i>Origin City / Municipality
-                </label>
-                <select id="origin" name="origin" class="form-control" required>
-                    <option value="">Search origin city...</option>
-                    <?php foreach ($phCities as [$city]):
-                        $sel = ($record['origin'] ?? $_POST['origin'] ?? '') === $city ? 'selected' : '';
-                    ?>
-                        <option value="<?= e($city) ?>" <?= $sel ?>><?= e($city) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Destination -->
-            <div class="mb-3">
-                <label class="form-label small fw-semibold" for="destination">
-                    <i class="bi bi-geo-fill text-danger me-1"></i>Destination City / Municipality
-                </label>
-                <select id="destination" name="destination" class="form-control" required>
-                    <option value="">Search destination city...</option>
-                    <?php foreach ($phCities as [$city]):
-                        $sel = ($record['destination'] ?? $_POST['destination'] ?? '') === $city ? 'selected' : '';
-                    ?>
-                        <option value="<?= e($city) ?>" <?= $sel ?>><?= e($city) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <!-- Distance (auto-computed or manual) -->
-            <div class="mb-3">
-                <label class="form-label small fw-semibold" for="distance_km">
-                    <i class="bi bi-rulers me-1 text-success"></i>Distance (km)
-                </label>
-                <div class="input-group">
-                    <input type="number" id="distance_km" name="distance_km" class="form-control"
-                           step="0.01" min="0.01" required
-                           value="<?= e($record['distance_km'] ?? $_POST['distance_km'] ?? '') ?>"
-                           placeholder="Auto-filled when cities are selected">
-                    <span class="input-group-text text-muted small">km</span>
-                </div>
-                <!-- Result hint -->
-                <div id="distanceResult" class="mt-2 p-2 rounded-2 small" style="display:none;"></div>
-            </div>
-
-            <!-- Status -->
-            <div class="mb-4">
-                <label class="form-label small fw-semibold">Status</label>
-                <select name="status" class="form-select custom-select-styled" required>
-                    <?php foreach (['ACTIVE', 'INACTIVE'] as $opt): ?>
-                        <option value="<?= $opt ?>" <?= ($record['status'] ?? 'ACTIVE') === $opt ? 'selected' : '' ?>>
-                            <?= ucfirst(strtolower($opt)) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="d-flex gap-2 pt-2">
-                <button type="submit" class="btn btn-primary rounded-pill shadow-sm px-4">
-                    <i class="bi bi-check-lg me-1"></i><?= $record ? 'Save Changes' : 'Save Route' ?>
-                </button>
-                <?php if ($record): ?>
-                    <a href="<?= url('admin/routes/index.php') ?>" class="btn btn-outline-secondary rounded-pill px-3">Cancel</a>
-                <?php endif; ?>
-            </div>
-        </form>
+<!-- Routes Table -->
+<div class="panel bg-white rounded-4 border shadow-sm overflow-hidden mb-4">
+    <div class="panel-head p-3 px-4 border-bottom d-flex justify-content-between align-items-center bg-light bg-opacity-50">
+        <h2 class="h6 fw-bold mb-0 text-uppercase text-muted" style="letter-spacing:.05em;">Routes Database</h2>
+        <span class="badge bg-light text-muted border"><?= count($rows) ?> routes</span>
     </div>
-
-    <!-- Right: Routes Table -->
-    <div class="col-xl-8">
-        <div class="panel bg-white rounded-4 border shadow-sm overflow-hidden">
-            <div class="panel-head p-3 px-4 border-bottom d-flex justify-content-between align-items-center bg-light bg-opacity-50">
-                <h2 class="h6 fw-bold mb-0 text-uppercase text-muted" style="letter-spacing:.05em;">Routes Database</h2>
-                <span class="badge bg-light text-muted border"><?= count($rows) ?> routes</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 custom-modern-table">
-                    <thead>
-                        <tr>
-                            <th class="ps-4">Origin</th>
-                            <th>Destination</th>
-                            <th>Distance</th>
-                            <th>Status</th>
-                            <th class="text-end pe-4">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($rows as $row): ?>
-                        <tr>
-                            <td class="ps-4">
-                                <span class="d-flex align-items-center gap-1">
-                                    <i class="bi bi-geo-alt-fill text-primary" style="font-size:.8rem;"></i>
-                                    <span class="fw-semibold text-dark"><?= e($row['origin']) ?></span>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="d-flex align-items-center gap-1">
-                                    <i class="bi bi-geo-fill text-danger" style="font-size:.8rem;"></i>
-                                    <span class="fw-semibold text-dark"><?= e($row['destination']) ?></span>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
-                                    <i class="bi bi-signpost me-1"></i><?= e(number_format((float)$row['distance_km'], 1)) ?> km
-                                </span>
-                            </td>
-                            <td><?= status_badge($row['status']) ?></td>
-                            <td class="text-end text-nowrap pe-4">
-                                <a class="btn btn-outline-dark btn-sm rounded-pill px-3 me-1"
-                                   href="<?= url('admin/routes/index.php?id=' . (int)$row['id']) ?>">
-                                    <i class="bi bi-pencil me-1"></i>Edit
-                                </a>
-                                <form method="post" class="d-inline"
-                                      data-confirm="Delete this route? Routes used by existing trips cannot be deleted.">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
-                                    <button class="btn btn-outline-danger btn-sm rounded-pill px-2" type="submit" title="Delete route">
-                                        <i class="bi bi-trash3"></i>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 custom-modern-table">
+            <thead>
+                <tr>
+                    <th class="ps-4">Origin</th>
+                    <th>Destination</th>
+                    <th>Distance</th>
+                    <th>Status</th>
+                    <th class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($rows as $row): ?>
+                <tr>
+                    <td class="ps-4">
+                        <span class="d-flex align-items-center gap-1">
+                            <i class="bi bi-geo-alt-fill text-primary" style="font-size:.8rem;"></i>
+                            <span class="fw-semibold text-dark"><?= e($row['origin']) ?></span>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="d-flex align-items-center gap-1">
+                            <i class="bi bi-geo-fill text-danger" style="font-size:.8rem;"></i>
+                            <span class="fw-semibold text-dark"><?= e($row['destination']) ?></span>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                            <i class="bi bi-signpost me-1"></i><?= e(number_format((float)$row['distance_km'], 1)) ?> km
+                        </span>
+                    </td>
+                    <td><?= status_badge($row['status']) ?></td>
+                    <td class="text-end text-nowrap pe-4">
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-light btn-sm rounded-circle p-2 shadow-xs border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-1">
+                                <li>
+                                    <button type="button" class="dropdown-item py-2 px-3 small d-flex align-items-center gap-2 btn-edit-route"
+                                            data-id="<?= (int)$row['id'] ?>"
+                                            data-origin="<?= e($row['origin']) ?>"
+                                            data-destination="<?= e($row['destination']) ?>"
+                                            data-distance="<?= e($row['distance_km']) ?>"
+                                            data-status="<?= e($row['status']) ?>">
+                                        <i class="bi bi-pencil text-primary"></i> Edit Route
                                     </button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if (!$rows): ?>
-                        <tr><td colspan="5" class="text-center text-muted py-5">
-                            No routes yet. Add the first route using the form on the left.
-                        </td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form method="post" data-confirm="Delete this route? Routes used by existing trips cannot be deleted.">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                                        <button class="dropdown-item py-2 px-3 small text-danger d-flex align-items-center gap-2" type="submit">
+                                            <i class="bi bi-trash3 text-danger"></i> Delete Route
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (!$rows): ?>
+                <tr><td colspan="5" class="text-center text-muted py-5">
+                    No routes yet. Click <strong>New Route</strong> to add one.
+                </td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Form for Route Add/Edit -->
+<div class="modal fade" id="routeModal" tabindex="-1" aria-labelledby="routeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form method="post" id="routeForm">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="save">
+                <input type="hidden" name="id" value="<?= (int)($record['route_id'] ?? $editId ?? 0) ?>">
+
+                <div class="modal-header border-bottom px-4 pt-4 pb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="stat-icon-wrapper bg-primary-subtle text-primary">
+                            <i class="bi bi-signpost-split"></i>
+                        </span>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="routeModalLabel">
+                            <?= $record ? 'Edit Route' : 'Add New Route' ?>
+                        </h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body px-4 py-3">
+                    <!-- Origin -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="origin">
+                            <i class="bi bi-geo-alt-fill text-primary me-1"></i>Origin City / Municipality
+                        </label>
+                        <select id="origin" name="origin" class="form-control" required>
+                            <option value="">Search origin city...</option>
+                            <?php foreach ($phCities as [$city]):
+                                $sel = ($record['origin'] ?? $_POST['origin'] ?? '') === $city ? 'selected' : '';
+                            ?>
+                                <option value="<?= e($city) ?>" <?= $sel ?>><?= e($city) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Destination -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="destination">
+                            <i class="bi bi-geo-fill text-danger me-1"></i>Destination City / Municipality
+                        </label>
+                        <select id="destination" name="destination" class="form-control" required>
+                            <option value="">Search destination city...</option>
+                            <?php foreach ($phCities as [$city]):
+                                $sel = ($record['destination'] ?? $_POST['destination'] ?? '') === $city ? 'selected' : '';
+                            ?>
+                                <option value="<?= e($city) ?>" <?= $sel ?>><?= e($city) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Distance (auto-computed or manual) -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="distance_km">
+                            <i class="bi bi-rulers me-1 text-success"></i>Distance (km)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" id="distance_km" name="distance_km" class="form-control"
+                                   step="0.01" min="0.01" required
+                                   value="<?= e($record['distance_km'] ?? $_POST['distance_km'] ?? '') ?>"
+                                   placeholder="Auto-filled when cities are selected">
+                            <span class="input-group-text text-muted small">km</span>
+                        </div>
+                        <!-- Result hint -->
+                        <div id="distanceResult" class="mt-2 p-2 rounded-2 small" style="display:none;"></div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Status</label>
+                        <select name="status" class="form-select custom-select-styled" required>
+                            <?php foreach (['ACTIVE', 'INACTIVE'] as $opt): ?>
+                                <option value="<?= $opt ?>" <?= ($record['status'] ?? 'ACTIVE') === $opt ? 'selected' : '' ?>>
+                                    <?= ucfirst(strtolower($opt)) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top px-4 py-3 bg-light bg-opacity-50">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill shadow-sm px-4">
+                        <i class="bi bi-check-lg me-1"></i><span id="routeSubmitBtnText"><?= $record ? 'Save Changes' : 'Save Route' ?></span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <!-- Tom Select JS -->
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<?php require __DIR__ . '/../../includes/footer.php'; ?>
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
     /* ── City coordinate table (Haversine) ───────────────────────────── */
     var CITIES = <?php
         $coords = [];
@@ -401,19 +422,21 @@ $phCities = [
     var manualEdit = false;
 
     function tryCompute() {
-        var orig = originSel.getValue().trim().toLowerCase();
-        var dest = destSel.getValue().trim().toLowerCase();
+        var orig = originSel ? originSel.getValue().trim().toLowerCase() : '';
+        var dest = destSel ? destSel.getValue().trim().toLowerCase() : '';
 
-        if (!orig || !dest) { box.style.display = 'none'; return; }
-        if (orig === dest)  { box.style.display = 'none'; return; }
+        if (!orig || !dest) { if (box) box.style.display = 'none'; return; }
+        if (orig === dest)  { if (box) box.style.display = 'none'; return; }
 
         var c1 = CITIES[orig];
         var c2 = CITIES[dest];
 
         if (!c1 || !c2) {
-            box.style.display = 'block';
-            box.className = 'mt-2 p-2 rounded-2 small bg-warning-subtle text-warning border border-warning-subtle';
-            box.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Coordinates not found for one of the cities — please enter the distance manually.';
+            if (box) {
+                box.style.display = 'block';
+                box.className = 'mt-2 p-2 rounded-2 small bg-warning-subtle text-warning border border-warning-subtle';
+                box.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Coordinates not found for one of the cities — please enter the distance manually.';
+            }
             return;
         }
 
@@ -421,17 +444,19 @@ $phCities = [
         // Add ~25% for road winding factor
         var roadEst = Math.round(km * 1.25 * 10) / 10;
 
-        if (!manualEdit) {
+        if (!manualEdit && inp) {
             inp.value = roadEst.toFixed(2);
         }
 
-        box.style.display = 'block';
-        box.className = 'mt-2 p-2 rounded-2 small bg-success-subtle text-success border border-success-subtle';
-        box.innerHTML =
-            '<i class="bi bi-check-circle-fill me-1"></i>' +
-            'Straight-line: <strong>' + (Math.round(km*10)/10).toFixed(1) + ' km</strong> &bull; ' +
-            'Est. road distance: <strong>' + roadEst.toFixed(1) + ' km</strong> (auto-filled). ' +
-            'Adjust to actual road km if known.';
+        if (box) {
+            box.style.display = 'block';
+            box.className = 'mt-2 p-2 rounded-2 small bg-success-subtle text-success border border-success-subtle';
+            box.innerHTML =
+                '<i class="bi bi-check-circle-fill me-1"></i>' +
+                'Straight-line: <strong>' + (Math.round(km*10)/10).toFixed(1) + ' km</strong> &bull; ' +
+                'Est. road distance: <strong>' + roadEst.toFixed(1) + ' km</strong> (auto-filled). ' +
+                'Adjust to actual road km if known.';
+        }
     }
 
     /* ── Tom Select — Origin ──────────────────────────────────────────── */
@@ -440,6 +465,7 @@ $phCities = [
         sortField: 'text',
         maxOptions: 15,
         placeholder: 'Type to search city...',
+        dropdownParent: 'body',
         onChange: function() { manualEdit = false; tryCompute(); }
     });
 
@@ -449,18 +475,91 @@ $phCities = [
         sortField: 'text',
         maxOptions: 15,
         placeholder: 'Type to search city...',
+        dropdownParent: 'body',
         onChange: function() { manualEdit = false; tryCompute(); }
     });
 
     /* Manual override stops auto-fill */
-    inp.addEventListener('input', function () {
-        manualEdit = true;
-        box.style.display = 'none';
-    });
+    if (inp) {
+        inp.addEventListener('input', function () {
+            manualEdit = true;
+            if (box) box.style.display = 'none';
+        });
+    }
 
     /* On edit page load, show distance info if both cities already set */
     tryCompute();
-})();
-</script>
 
-<?php require __DIR__ . '/../../includes/footer.php'; ?>
+    var modalEl = document.getElementById('routeModal');
+    var getModal = function () {
+        if (!modalEl || typeof bootstrap === 'undefined') return null;
+        return bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    };
+
+    var modalLabel = document.getElementById('routeModalLabel');
+    var submitBtnText = document.getElementById('routeSubmitBtnText');
+    var formEl = document.getElementById('routeForm');
+    var formIdInp = formEl ? formEl.querySelector('input[name="id"]') : null;
+    var statusSelect = formEl ? formEl.querySelector('select[name="status"]') : null;
+
+    // Reset modal on New Route
+    var btnAdd = document.getElementById('btnOpenAddModal');
+    if (btnAdd) {
+        btnAdd.addEventListener('click', function () {
+            if (formIdInp) formIdInp.value = '0';
+            if (modalLabel) modalLabel.textContent = 'Add New Route';
+            if (submitBtnText) submitBtnText.textContent = 'Save Route';
+            if (originSel) originSel.clear();
+            if (destSel) destSel.clear();
+            if (inp) inp.value = '';
+            if (box) box.style.display = 'none';
+            if (statusSelect) statusSelect.value = 'ACTIVE';
+            var myModal = getModal();
+            if (myModal) myModal.show();
+        });
+    }
+
+    // Modal on Edit Route button click
+    document.querySelectorAll('.btn-edit-route').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var id = this.getAttribute('data-id');
+            var origin = this.getAttribute('data-origin');
+            var dest = this.getAttribute('data-destination');
+            var distance = this.getAttribute('data-distance');
+            var status = this.getAttribute('data-status');
+
+            if (formIdInp) formIdInp.value = id;
+            if (modalLabel) modalLabel.textContent = 'Edit Route';
+            if (submitBtnText) submitBtnText.textContent = 'Save Changes';
+
+            if (originSel) {
+                if (!originSel.options[origin]) {
+                    originSel.addOption({value: origin, text: origin});
+                }
+                originSel.setValue(origin, true);
+            }
+
+            if (destSel) {
+                if (!destSel.options[dest]) {
+                    destSel.addOption({value: dest, text: dest});
+                }
+                destSel.setValue(dest, true);
+            }
+
+            if (inp) inp.value = parseFloat(distance).toFixed(2);
+            if (statusSelect) statusSelect.value = status;
+            manualEdit = true;
+            tryCompute();
+
+            var myModal = getModal();
+            if (myModal) myModal.show();
+        });
+    });
+
+    <?php if ($record || (!empty($errors) && ($_POST['action'] ?? '') === 'save')): ?>
+    var myModal = getModal();
+    if (myModal) myModal.show();
+    <?php endif; ?>
+});
+</script>

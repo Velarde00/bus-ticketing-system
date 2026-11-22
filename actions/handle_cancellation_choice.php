@@ -89,65 +89,22 @@ try {
         }
 
         if ($isCancelledByAdminOrTrip) {
-            // AUTOMATIC BULK REFUND: Refund all bookings for this passenger on this trip simultaneously
+            // AUTOMATIC BULK REFUND: Refund all bookings for this passenger on this trip simultaneously via Payment Gateway API
             $totalRefundAmount = 0.0;
             $refundedRefs = [];
-            $notifStmt = $pdo->prepare(
-                "INSERT INTO notifications (user_id, title, message, link) VALUES (:uid, :title, :msg, :link)"
-            );
-            $updateBooking = $pdo->prepare("UPDATE bookings SET cancellation_choice = 'REFUND_REQUESTED' WHERE booking_id = :id");
-            $updatePayment = $pdo->prepare(
-                "UPDATE payments
-                 SET payment_status = 'REFUNDED',
-                     refund_payment_option = 'GCASH',
-                     refund_account_name = :acct_name,
-                     refund_account_number = :acct_num,
-                     refund_transfer_reference = :ref_no,
-                     refund_processed_at = NOW(),
-                     payment_date = NOW()
-                 WHERE payment_id = :pid"
-            );
 
             foreach ($relatedBookings as $rb) {
-                $bId = (int)$rb['booking_id'];
                 $pId = (int)($rb['payment_id'] ?? 0);
-                $pStatus = $rb['payment_status'] ?? '';
-                $refNo = 'REF-EW-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 8));
-
-                $updateBooking->execute([':id' => $bId]);
-
-                if ($pId && in_array($pStatus, ['PAID', 'REFUND_REQUESTED', 'PENDING'], true)) {
-                    $updatePayment->execute([
-                        ':acct_name' => $booking['passenger_name'],
-                        ':acct_num'  => $booking['phone_number'] ?: '09123456789',
-                        ':ref_no'    => $refNo,
-                        ':pid'       => $pId
-                    ]);
-                    $totalRefundAmount += (float)$rb['amount'];
-                    $refundedRefs[] = $rb['booking_reference'] . " ({$refNo})";
+                if ($pId) {
+                    $res = process_automated_api_refund($pdo, $pId, $booking['phone_number']);
+                    $totalRefundAmount += $res['amount'];
+                    $refundedRefs[] = $res['booking_ref'] . " ({$res['reference_no']})";
                 }
             }
 
             $refsList = implode(', ', $refundedRefs);
-
-            // 1. Notify Passenger of full automated refund across all tickets/seats for this trip
-            $notifStmt->execute([
-                ':uid'   => $uid,
-                ':title' => "All Trip Bookings Refunded to Your E-Wallet",
-                ':msg'   => "The operator cancelled trip ({$booking['origin']} → {$booking['destination']}). A full total refund of " . money($totalRefundAmount) . " for your booking(s) [{$refsList}] has been automatically sent to your registered E-Wallet ({$booking['phone_number']}).",
-                ':link'  => "passenger/booking_confirmation.php?booking_id=" . $bookingId,
-            ]);
-
-            // 2. Notify Admins
-            $adminTitle = "Automatic Full Refund Disbursed: {$booking['passenger_name']}";
-            $adminMsg   = "Trip ({$booking['origin']} → {$booking['destination']}) cancelled. All bookings for {$booking['passenger_name']} [{$refsList}] were automatically refunded to their E-Wallet for a total of " . money($totalRefundAmount) . ".";
-            $adminLink  = "admin/payments/index.php?search=" . urlencode($booking['passenger_name']);
-            foreach ($adminIds as $adminId) {
-                $notifStmt->execute([':uid' => $adminId, ':title' => $adminTitle, ':msg' => $adminMsg, ':link' => $adminLink]);
-            }
-
             $pdo->commit();
-            set_flash('success', "All your bookings for this cancelled trip were automatically refunded! A total of " . money($totalRefundAmount) . " has been sent directly to your registered E-Wallet ({$booking['phone_number']}).");
+            set_flash('success', "All your bookings for this cancelled trip were automatically refunded! A total of " . money($totalRefundAmount) . " has been sent directly to your registered E-Wallet ({$booking['phone_number']}) via Payment Gateway API.");
             redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);
         } else {
             // Standard refund request (voluntary cancellation by passenger)
@@ -162,14 +119,14 @@ try {
                 "INSERT INTO notifications (user_id, title, message, link) VALUES (:uid, :title, :msg, :link)"
             );
             $title = "Refund Requested: {$booking['passenger_name']} ({$booking['booking_reference']})";
-            $msg   = "Passenger {$booking['passenger_name']} requested a refund for booking ({$booking['origin']} → {$booking['destination']}).";
-            $link  = "admin/payments/index.php?search=" . urlencode($booking['passenger_name']);
+            $msg   = "Passenger {$booking['passenger_name']} requested an automated refund for cancelled booking ({$booking['origin']} → {$booking['destination']}).";
+            $link  = "admin/refunds/index.php";
             foreach ($adminIds as $adminId) {
                 $notifStmt->execute([':uid' => $adminId, ':title' => $title, ':msg' => $msg, ':link' => $link]);
             }
 
             $pdo->commit();
-            set_flash('success', "Refund request submitted for all your bookings on this trip. The terminal administrator has been notified to process your refund.");
+            set_flash('success', "Refund request submitted for all your bookings on this trip. The system will disburse your refund automatically.");
             redirect('passenger/booking_confirmation.php?booking_id=' . $bookingId);
         }
     } else {

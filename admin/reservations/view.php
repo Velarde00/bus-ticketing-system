@@ -15,6 +15,10 @@ $stmt = $pdo->prepare(
 $stmt->execute([':id' => $id ?: 0]);
 $booking = $stmt->fetch();
 if (!$booking) {
+    if (isset($_GET['modal'])) {
+        echo '<div class="alert alert-warning m-3">Reservation not found.</div>';
+        exit;
+    }
     set_flash('warning', 'Reservation not found.');
     redirect('admin/reservations/index.php');
 }
@@ -29,11 +33,16 @@ $stmt = $pdo->prepare('SELECT amount, payment_method, payment_status, payment_da
 $stmt->execute([':id' => $id]);
 $payments = $stmt->fetchAll();
 
-$pageTitle = 'Reservation ' . $booking['booking_reference'];
-$layout = 'admin';
-$activePage = 'reservations';
-require __DIR__ . '/../../includes/header.php';
+$isModal = isset($_GET['modal']);
+
+if (!$isModal) {
+    $pageTitle = 'Reservation ' . $booking['booking_reference'];
+    $layout = 'admin';
+    $activePage = 'reservations';
+    require __DIR__ . '/../../includes/header.php';
+}
 ?>
+<?php if (!$isModal): ?>
 <div class="mb-3">
     <a href="<?= url('admin/reservations/index.php') ?>" class="text-muted text-decoration-none small d-inline-flex align-items-center gap-1 mb-2">
         <i class="bi bi-arrow-left"></i> Back to all reservations
@@ -48,6 +57,17 @@ require __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+<?php else: ?>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+    <div>
+        <h3 class="h5 fw-bold mb-0 font-monospace text-dark"><?= e($booking['booking_reference']) ?></h3>
+        <span class="text-muted small"><i class="bi bi-clock me-1"></i> Booked <?= e(fmt_datetime($booking['booking_date'])) ?></span>
+    </div>
+    <div>
+        <?= status_badge($booking['status']) ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="panel bg-white rounded-4 border shadow-sm mb-4 overflow-hidden">
     <div class="panel-head p-3 px-4 border-bottom bg-light bg-opacity-50">
@@ -138,4 +158,8 @@ require __DIR__ . '/../../includes/header.php';
         </table>
     </div>
 </div>
-<?php require __DIR__ . '/../../includes/footer.php'; ?>
+<?php
+if (!$isModal) {
+    require __DIR__ . '/../../includes/footer.php';
+}
+?>

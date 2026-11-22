@@ -1327,10 +1327,40 @@ h1, h2, h3, h4, h5, h6,
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.sidebar-section-toggle {
+    color: #60A5FA !important; /* Bright royal blue */
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    margin-bottom: 4px;
+}
+
+.sidebar-section-toggle:hover {
+    color: #10B981 !important; /* Vibrant green on hover */
+    background: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.sidebar-section-toggle[aria-expanded="true"] {
+    color: #38BDF8 !important; /* Bright Sky Blue */
+    background: rgba(56, 189, 248, 0.15) !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+.sidebar-section-toggle[aria-expanded="true"] .section-arrow {
+    transform: rotate(180deg);
+}
+
 .sidebar-heading {
-    color: var(--ink-faint);
-    font-size: 0.72rem;
-    font-weight: 700;
+    color: #60A5FA;
+    font-size: 0.75rem;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     padding: 0.85rem 1rem 0.35rem;
@@ -1341,18 +1371,22 @@ h1, h2, h3, h4, h5, h6,
     align-items: center;
     gap: 0.75rem;
     padding: 0.65rem 1rem;
-    color: #94A3B8;
+    color: #60A5FA !important; /* Electric bright blue */
     text-decoration: none;
-    font-weight: 500;
-    font-size: 0.9rem;
+    font-weight: 600;
+    font-size: 0.92rem;
     border-radius: var(--radius-sm);
-    margin-bottom: 2px;
+    margin-bottom: 3px;
     transition: all 0.15s ease;
 }
 
-.sidebar-link span,
+.sidebar-link span {
+    color: #60A5FA !important;
+}
+
 .sidebar-link .sidebar-icon {
-    color: inherit;
+    color: #38BDF8 !important; /* Bright cyan-blue icon */
+    font-size: 1.15rem;
     transition: color 0.15s ease;
 }
 
@@ -1362,8 +1396,8 @@ h1, h2, h3, h4, h5, h6,
 .admin-sidebar .sidebar-link:focus,
 aside.admin-sidebar .sidebar-nav a.sidebar-link:hover,
 aside.admin-sidebar .sidebar-nav a.sidebar-link:focus {
-    color: #34D399 !important; /* Vibrant Emerald Teal (not white) */
-    background: rgba(52, 211, 153, 0.12) !important;
+    color: #10B981 !important; /* Vibrant Emerald Green on hover */
+    background: rgba(16, 185, 129, 0.15) !important;
 }
 
 .sidebar-link:hover *,
@@ -1374,7 +1408,7 @@ aside.admin-sidebar .sidebar-nav a.sidebar-link:hover span,
 aside.admin-sidebar .sidebar-nav a.sidebar-link:hover i,
 aside.admin-sidebar .sidebar-nav a.sidebar-link:focus span,
 aside.admin-sidebar .sidebar-nav a.sidebar-link:focus i {
-    color: #34D399 !important; /* Vibrant Emerald Teal on hover across all screens */
+    color: #10B981 !important; /* Vibrant Emerald Green across all children */
 }
 
 @media (min-width: 992px) {
@@ -1382,23 +1416,23 @@ aside.admin-sidebar .sidebar-nav a.sidebar-link:focus i {
     .admin-sidebar .sidebar-link:focus,
     aside.admin-sidebar .sidebar-link:hover,
     aside.admin-sidebar .sidebar-link:focus {
-        color: #34D399 !important;
-        background: rgba(52, 211, 153, 0.12) !important;
+        color: #10B981 !important;
+        background: rgba(16, 185, 129, 0.15) !important;
     }
     .admin-sidebar .sidebar-link:hover *,
     .admin-sidebar .sidebar-link:focus *,
     aside.admin-sidebar .sidebar-link:hover *,
     aside.admin-sidebar .sidebar-link:focus * {
-        color: #34D399 !important;
+        color: #10B981 !important;
     }
 }
 
 .sidebar-link.active,
 .admin-sidebar .sidebar-link.active {
     color: #FFFFFF !important;
-    background: var(--primary) !important;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(14, 124, 102, 0.3);
+    background: #2563EB !important; /* Royal Blue active fill */
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
 }
 
 .sidebar-link.active span,

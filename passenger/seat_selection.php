@@ -7,7 +7,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_role('PASSENGER');
 
-const MAX_SEATS_PER_BOOKING = 6;
+const MAX_SEATS_PER_BOOKING = 999;
 
 $tripId = filter_var($_GET['trip_id'] ?? null, FILTER_VALIDATE_INT);
 if (!$tripId) {
@@ -119,11 +119,11 @@ require __DIR__ . '/../includes/header.php';
                 <div class="panel p-4 shadow-sm bg-white rounded-4 border">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h2 class="h5 fw-bold mb-0">Select Your Seats</h2>
-                        <span class="text-muted small">Max <?= MAX_SEATS_PER_BOOKING ?> seats per booking</span>
+                        <span class="text-muted small">Choose any available seats</span>
                     </div>
 
                     <!-- Visual Legend -->
-                    <div class="seat-legend-modern mb-4 p-2 bg-light rounded-pill d-flex justify-content-center gap-3 gap-md-4">
+                    <div class="seat-legend-modern mb-3 p-2 bg-light rounded-pill d-flex justify-content-center gap-3 gap-md-4">
                         <div class="d-flex align-items-center gap-2 small">
                             <span class="legend-seat-sample legend-free"></span>
                             <span>Available</span>
@@ -135,6 +135,26 @@ require __DIR__ . '/../includes/header.php';
                         <div class="d-flex align-items-center gap-2 small">
                             <span class="legend-seat-sample legend-taken"></span>
                             <span>Occupied</span>
+                        </div>
+                    </div>
+
+                    <!-- Type or Quick Enter Seat Numbers -->
+                    <div class="mb-4 p-3 bg-light rounded-3 border">
+                        <label for="seatInputQuick" class="form-label small fw-semibold text-dark mb-1 d-flex align-items-center gap-1">
+                            <i class="bi bi-keyboard text-primary"></i> Type Seat Number(s)
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="seatInputQuick" class="form-control" placeholder="e.g. 5, 6, 12 or 1-4" autocomplete="off">
+                            <button type="button" id="btnApplyTypedSeats" class="btn btn-primary px-3 fw-semibold">
+                                <i class="bi bi-plus-lg me-1"></i> Apply
+                            </button>
+                            <button type="button" id="btnClearTypedSeats" class="btn btn-outline-secondary px-2" title="Clear all selected seats">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="text-muted" style="font-size:0.75rem;">Enter seat numbers separated by commas or ranges (e.g. 1-4, 7, 9)</span>
+                            <span id="typedSeatsMsg" class="small fw-semibold" style="font-size:0.75rem;"></span>
                         </div>
                     </div>
 
@@ -259,11 +279,11 @@ require __DIR__ . '/../includes/header.php';
 
                     <!-- Per-seat Passenger Type Details (shown when seats are selected) -->
                     <div id="passengerDetailsSection" class="mb-3" style="display:none;">
-                        <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
                             <span class="form-label mb-0 small fw-semibold text-dark">Passenger Details</span>
                             <span class="badge bg-info-subtle text-info border border-info-subtle small">20% discount for Student / Senior / PWD</span>
                         </div>
-                        <div id="passengerDetailsRows" class="d-flex flex-column gap-2"></div>
+                        <div id="passengerDetailsRows" class="d-flex flex-column gap-2" style="max-height: 260px; overflow-y: auto; padding-right: 4px;"></div>
                     </div>
 
                     <!-- Price Breakdown -->
@@ -290,8 +310,8 @@ require __DIR__ . '/../includes/header.php';
                     <div class="mb-4">
                         <label class="form-label fw-semibold small mb-2">Payment Method</label>
                         <div class="alert alert-info border-0 py-2 px-3 small d-flex align-items-center gap-2 mb-2 rounded-3">
-                            <i class="bi bi-shield-lock-fill flex-shrink-0 text-info"></i>
-                            <span>Online bookings require secure <strong>E-Wallet verification</strong> (GCash / Maya). An OTP authorization code will be dispatched to your email &amp; mobile number to verify payment.</span>
+                            <i class="bi bi-qr-code-scan flex-shrink-0 text-info fs-5"></i>
+                            <span>Online bookings are paid via <strong>Merchant QR Code or Account Number</strong> (GCash / Maya). Scan or transfer to confirm your tickets instantly.</span>
                         </div>
                         <input type="hidden" name="payment_method" value="E_WALLET">
                         <div class="row g-2 mb-2">
@@ -301,7 +321,7 @@ require __DIR__ . '/../includes/header.php';
                                     <span class="badge bg-primary text-white p-2 rounded-circle"><i class="bi bi-wallet2"></i></span>
                                     <div>
                                         <div class="fw-bold small">GCash</div>
-                                        <div class="text-muted" style="font-size:0.7rem;">Direct verification</div>
+                                        <div class="text-muted" style="font-size:0.7rem;">Scan QR / Mobile #</div>
                                     </div>
                                 </label>
                             </div>
@@ -311,7 +331,7 @@ require __DIR__ . '/../includes/header.php';
                                     <span class="badge bg-success text-white p-2 rounded-circle"><i class="bi bi-credit-card-2-front"></i></span>
                                     <div>
                                         <div class="fw-bold small">Maya</div>
-                                        <div class="text-muted" style="font-size:0.7rem;">Direct verification</div>
+                                        <div class="text-muted" style="font-size:0.7rem;">Scan QR / Mobile #</div>
                                     </div>
                                 </label>
                             </div>
@@ -385,12 +405,12 @@ require __DIR__ . '/../includes/header.php';
             var currentId   = seatIds[seatNum] || '';
 
             var card = document.createElement('div');
-            card.className = 'p-3 bg-light rounded-3 border';
+            card.className = 'p-2 px-3 bg-white rounded-3 border shadow-xs';
 
             var header = document.createElement('div');
-            header.className = 'd-flex justify-content-between align-items-center mb-2';
-            header.innerHTML = '<span class="badge bg-primary text-white px-2 py-1 rounded-pill fw-semibold">Seat ' + seatNum + '</span>' +
-                '<span class="text-success small fw-semibold" id="seat-fare-tag-' + seatNum + '">' +
+            header.className = 'd-flex justify-content-between align-items-center mb-1';
+            header.innerHTML = '<span class="badge bg-primary text-white px-2 py-1 rounded-pill fw-semibold" style="font-size:0.75rem;">Seat ' + seatNum + '</span>' +
+                '<span class="text-success small fw-semibold" id="seat-fare-tag-' + seatNum + '" style="font-size:0.8rem;">' +
                 (currentType === 'REGULAR' ? fmtMoney(fare) : fmtMoney(fare * 0.80) + ' (20% off)') +
                 '</span>';
             card.appendChild(header);
@@ -399,9 +419,9 @@ require __DIR__ . '/../includes/header.php';
             formRow.className = 'row g-2 align-items-center';
 
             var colSelect = document.createElement('div');
-            colSelect.className = 'col-sm-6';
-            colSelect.innerHTML = '<label class="form-label small text-muted mb-1" for="ptype-' + seatNum + '">Passenger Type:</label>' +
-                '<select class="form-select form-select-sm" name="passenger_type[' + seatNum + ']" id="ptype-' + seatNum + '">' +
+            colSelect.className = (currentType === 'REGULAR') ? 'col-12' : 'col-sm-6';
+            colSelect.id = 'type-col-' + seatNum;
+            colSelect.innerHTML = '<select class="form-select form-select-sm" name="passenger_type[' + seatNum + ']" id="ptype-' + seatNum + '">' +
                 '<option value="REGULAR"' + (currentType === 'REGULAR' ? ' selected' : '') + '>Regular Passenger</option>' +
                 '<option value="STUDENT"' + (currentType === 'STUDENT' ? ' selected' : '') + '>Student (20% Discount)</option>' +
                 '<option value="SENIOR"' + (currentType === 'SENIOR' ? ' selected' : '') + '>Senior Citizen (20% Discount)</option>' +
@@ -412,9 +432,8 @@ require __DIR__ . '/../includes/header.php';
             colId.className = 'col-sm-6';
             colId.id = 'id-col-' + seatNum;
             colId.style.display = currentType === 'REGULAR' ? 'none' : 'block';
-            colId.innerHTML = '<label class="form-label small text-muted mb-1" for="pid-' + seatNum + '">ID Number <span class="text-danger">*</span>:</label>' +
-                '<input type="text" class="form-control form-control-sm" name="id_number[' + seatNum + ']" id="pid-' + seatNum + '" ' +
-                'placeholder="Enter ID # (School / OSCA / PWD)" maxlength="50" value="' + (currentId.replace(/"/g, '&quot;')) + '"' +
+            colId.innerHTML = '<input type="text" class="form-control form-control-sm" name="id_number[' + seatNum + ']" id="pid-' + seatNum + '" ' +
+                'placeholder="ID # (School / OSCA / PWD)" maxlength="50" value="' + (currentId.replace(/"/g, '&quot;')) + '"' +
                 (currentType !== 'REGULAR' ? ' required' : '') + '>';
 
             formRow.appendChild(colSelect);
@@ -429,9 +448,11 @@ require __DIR__ . '/../includes/header.php';
             selectEl.addEventListener('change', function () {
                 seatTypes[seatNum] = this.value;
                 if (this.value !== 'REGULAR') {
+                    colSelect.className = 'col-sm-6';
                     colId.style.display = 'block';
                     idInput.required = true;
                 } else {
+                    colSelect.className = 'col-12';
                     colId.style.display = 'none';
                     idInput.required = false;
                 }
@@ -529,13 +550,106 @@ require __DIR__ . '/../includes/header.php';
 
     boxes.forEach(function (b) {
         b.addEventListener('change', function () {
-            if (form.querySelectorAll('.seat-input:checked').length > max) {
-                b.checked = false;
-                alert('You can select a maximum of ' + max + ' seats per booking.');
-            }
             update();
         });
     });
+
+    // --- Typing seats directly ---
+    var quickInput = document.getElementById('seatInputQuick');
+    var applyBtn   = document.getElementById('btnApplyTypedSeats');
+    var clearBtn   = document.getElementById('btnClearTypedSeats');
+    var msgSpan    = document.getElementById('typedSeatsMsg');
+
+    function parseSeatTokens(str) {
+        var result = [];
+        var parts = str.split(/[,;\s]+/);
+        parts.forEach(function (p) {
+            p = p.trim();
+            if (!p) return;
+            if (p.indexOf('-') !== -1) {
+                var range = p.split('-');
+                if (range.length === 2) {
+                    var rStart = parseInt(range[0], 10);
+                    var rEnd   = parseInt(range[1], 10);
+                    if (!isNaN(rStart) && !isNaN(rEnd)) {
+                        var min = Math.min(rStart, rEnd);
+                        var max = Math.max(rStart, rEnd);
+                        for (var i = min; i <= max; i++) result.push(i);
+                    }
+                }
+            } else {
+                var num = parseInt(p, 10);
+                if (!isNaN(num)) result.push(num);
+            }
+        });
+        return result;
+    }
+
+    if (applyBtn && quickInput) {
+        function applyTyped() {
+            var val = quickInput.value.trim();
+            if (!val) return;
+            var requested = parseSeatTokens(val);
+            if (requested.length === 0) {
+                if (msgSpan) { msgSpan.className = 'small fw-semibold text-danger'; msgSpan.textContent = 'Invalid seat format.'; }
+                return;
+            }
+
+            var added = 0;
+            var taken = 0;
+            var notFound = 0;
+
+            requested.forEach(function (num) {
+                var box = document.getElementById('seat-' + num);
+                if (!box) {
+                    notFound++;
+                } else if (box.disabled) {
+                    taken++;
+                } else {
+                    if (!box.checked) {
+                        box.checked = true;
+                        added++;
+                    }
+                }
+            });
+
+            update();
+            quickInput.value = '';
+
+            if (msgSpan) {
+                if (notFound > 0 || taken > 0) {
+                    msgSpan.className = 'small fw-semibold text-warning';
+                    msgSpan.textContent = (added > 0 ? added + ' seat(s) selected. ' : '') +
+                        (taken > 0 ? taken + ' already occupied. ' : '') +
+                        (notFound > 0 ? notFound + ' do not exist.' : '');
+                } else {
+                    msgSpan.className = 'small fw-semibold text-success';
+                    msgSpan.textContent = added > 0 ? added + ' seat(s) added!' : 'Seats already selected.';
+                }
+                setTimeout(function () { msgSpan.textContent = ''; }, 4000);
+            }
+        }
+
+        applyBtn.addEventListener('click', applyTyped);
+        quickInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyTyped();
+            }
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            boxes.forEach(function (b) { if (!b.disabled) b.checked = false; });
+            update();
+            if (msgSpan) {
+                msgSpan.className = 'small fw-semibold text-muted';
+                msgSpan.textContent = 'Selections cleared.';
+                setTimeout(function () { msgSpan.textContent = ''; }, 3000);
+            }
+        });
+    }
 
     update();
 })();

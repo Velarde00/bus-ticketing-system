@@ -53,9 +53,6 @@ sort($seats);
 if (count($seats) < 1) {
     fail('Select at least one seat.', $back);
 }
-if (count($seats) > MAX_SEATS) {
-    fail('You can book up to ' . MAX_SEATS . ' seats at a time.', $back);
-}
 
 try {
     $pdo->beginTransaction();

@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Process Register
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'register') {
+    $isRegister = true;
     if (!csrf_verify()) {
         $registerErrors[] = 'Your session expired. Please try again.';
     } else {
@@ -55,6 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $last     = trim($_POST['last_name'] ?? '');
         $email    = strtolower(trim($_POST['email'] ?? ''));
         $phone    = preg_replace('/[\s-]/', '', $_POST['phone_number'] ?? '');
+        $channel  = strtoupper(trim($_POST['otp_channel'] ?? 'EMAIL'));
+        if (!in_array($channel, ['EMAIL', 'SMS'], true)) {
+            $channel = 'EMAIL';
+        }
         $password = $_POST['password'] ?? '';
         $confirm  = $_POST['confirm_password'] ?? '';
 
@@ -86,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         if (!$registerErrors) {
-            $otpInfo = create_and_dispatch_otp($pdo, $email, $phone, 'REGISTRATION');
+            $otpInfo = create_and_dispatch_otp($pdo, $email, $phone, 'REGISTRATION', $channel);
 
             $_SESSION['pending_registration'] = [
                 'first_name'    => $first,
@@ -94,13 +99,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 'email'         => $email,
                 'phone_number'  => $phone,
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                'channel'       => $channel,
                 'masked_email'  => $otpInfo['masked_email'],
                 'masked_phone'  => $otpInfo['masked_phone'],
                 'code'          => $otpInfo['code'],
                 'expires_at'    => $otpInfo['expires_at'],
             ];
 
-            set_flash('info', 'We sent a 6-digit verification code to your email and phone.');
+            set_flash('info', 'We sent a 6-digit verification code to your ' . ($channel === 'SMS' ? 'mobile number via SMS.' : 'email address.'));
             redirect('auth/verify_otp.php');
         }
     }
@@ -119,7 +125,7 @@ require __DIR__ . '/../includes/header.php';
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="register">
                 <h2 class="h4 fw-bold text-dark mb-1">Create Passenger Account</h2>
-                <p class="text-muted small mb-3">Join to book seats &amp; travel across the Philippines.</p>
+                <p class="text-muted small mb-2">Join to book seats &amp; travel across Western Mindanao.</p>
 
                 <?php foreach ($registerErrors as $error): ?>
                     <div class="alert alert-danger py-1 px-2 border-0 shadow-sm small mb-2 w-100 text-start">
@@ -146,6 +152,27 @@ require __DIR__ . '/../includes/header.php';
                 <div class="w-100 text-start mb-2">
                     <label class="form-label small fw-semibold mb-1">Mobile Number</label>
                     <input type="tel" class="form-control form-control-sm" name="phone_number" value="<?= e($_POST['phone_number'] ?? '') ?>" placeholder="09171234567" required>
+                </div>
+
+                <!-- OTP Delivery Choice: Number or Email -->
+                <div class="w-100 text-start mb-2 p-2 bg-light rounded-3 border">
+                    <label class="form-label small fw-bold text-dark d-block mb-1">
+                        <i class="bi bi-shield-lock-fill text-primary me-1"></i> Send 6-digit OTP via:
+                    </label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input" type="radio" name="otp_channel" id="optEmail" value="EMAIL" <?= (($_POST['otp_channel'] ?? 'EMAIL') === 'EMAIL') ? 'checked' : '' ?>>
+                            <label class="form-check-label small fw-semibold" for="optEmail">
+                                <i class="bi bi-envelope-check text-primary me-1"></i> Email
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input" type="radio" name="otp_channel" id="optSMS" value="SMS" <?= (($_POST['otp_channel'] ?? '') === 'SMS') ? 'checked' : '' ?>>
+                            <label class="form-check-label small fw-semibold" for="optSMS">
+                                <i class="bi bi-phone-vibrate text-success me-1"></i> Mobile (SMS)
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="row g-2 w-100 mb-3">

@@ -1,83 +1,9 @@
 <?php
 /**
  * index.php  Homepage with the trip search form, scheduled available bus timetable,
- * and built-in sliding Login/Register portal.
+ * and regional route showcase.
  */
 require_once __DIR__ . '/includes/auth.php';
-
-// Handle Direct Login / Register actions from the landing page
-$authErrors = [];
-$authSuccess = '';
-$activeAuthTab = $_GET['tab'] ?? 'login';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if (!csrf_verify()) {
-        $authErrors[] = 'Your session expired. Please try again.';
-    } elseif ($_POST['action'] === 'landing_login') {
-        $activeAuthTab = 'login';
-        $email    = strtolower(trim($_POST['email'] ?? ''));
-        $password = $_POST['password'] ?? '';
-
-        if ($email === '' || $password === '') {
-            $authErrors[] = 'Enter your email and password.';
-        } else {
-            $stmt = $pdo->prepare('SELECT user_id, first_name, last_name, email, phone_number, password_hash, role, account_status FROM users WHERE email = :email LIMIT 1');
-            $stmt->execute([':email' => $email]);
-            $u = $stmt->fetch();
-
-            if (!$u || !password_verify($password, $u['password_hash'])) {
-                $authErrors[] = 'Incorrect email or password.';
-            } elseif ($u['account_status'] !== 'ACTIVE') {
-                $authErrors[] = 'This account is inactive. Contact the administrator.';
-            } else {
-                session_regenerate_id(true);
-                $_SESSION['user_id']   = (int)$u['user_id'];
-                $_SESSION['user_name'] = $u['first_name'] . ' ' . $u['last_name'];
-                $_SESSION['role']      = $u['role'];
-                redirect(in_array($u['role'], ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php');
-            }
-        }
-    } elseif ($_POST['action'] === 'landing_register') {
-        $activeAuthTab = 'register';
-        $first    = trim($_POST['first_name'] ?? '');
-        $last     = trim($_POST['last_name'] ?? '');
-        $email    = strtolower(trim($_POST['email'] ?? ''));
-        $phone    = preg_replace('/[\s-]/', '', $_POST['phone_number'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $confirm  = $_POST['confirm_password'] ?? '';
-
-        if (!preg_match("/^[\p{L}][\p{L} .'-]{1,49}$/u", $first)) $authErrors[] = 'Enter a valid first name (2 to 50 letters).';
-        if (!preg_match("/^[\p{L}][\p{L} .'-]{1,49}$/u", $last))  $authErrors[] = 'Enter a valid last name (2 to 50 letters).';
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $authErrors[] = 'Enter a valid email address.';
-        if (!preg_match('/^(09\d{9}|\+639\d{9})$/', $phone)) $authErrors[] = 'Enter a Philippine mobile number, like 09171234567.';
-        if (strlen($password) < 8 || !preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password)) $authErrors[] = 'Password must be at least 8 characters with a letter & number.';
-        if ($password !== $confirm) $authErrors[] = 'Passwords do not match.';
-
-        if (!$authErrors) {
-            $chk = $pdo->prepare('SELECT 1 FROM users WHERE email = :email');
-            $chk->execute([':email' => $email]);
-            if ($chk->fetch()) {
-                $authErrors[] = 'That email is already registered. Please sign in.';
-            }
-        }
-
-        if (!$authErrors) {
-            $otpInfo = create_and_dispatch_otp($pdo, $email, $phone, 'REGISTRATION');
-            $_SESSION['pending_registration'] = [
-                'first_name'    => $first,
-                'last_name'     => $last,
-                'email'         => $email,
-                'phone_number'  => $phone,
-                'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                'masked_email'  => $otpInfo['masked_email'],
-                'masked_phone'  => $otpInfo['masked_phone'],
-                'code'          => $otpInfo['code'],
-                'expires_at'    => $otpInfo['expires_at'],
-            ];
-            redirect('auth/verify_otp.php');
-        }
-    }
-}
 
 // Cities for the dropdowns (only routes that are ACTIVE)
 $origins = $pdo->query("SELECT DISTINCT origin FROM routes WHERE status = 'ACTIVE' ORDER BY origin")->fetchAll(PDO::FETCH_COLUMN);
@@ -125,171 +51,298 @@ $pageTitle = 'Book your bus seat';
 $layout    = 'public';
 require __DIR__ . '/includes/header.php';
 ?>
-<!-- Hero Section with Integrated Sliding Auth Portal -->
-<section class="hero hero-elevated position-relative overflow-hidden" id="hero-portal">
+<!-- Hero Section -->
+<section class="hero hero-elevated position-relative overflow-hidden">
     <div class="hero-ambient-glow"></div>
-    <div class="container position-relative z-1 py-4">
-        <div class="text-center text-white mb-4">
-            <div class="hero-badge mb-3 d-inline-flex align-items-center gap-2">
-                <span class="badge-dot"></span>
-                <span>Official Zamboanga &amp; Region 9 Bus Booking Portal</span>
+    <div class="container position-relative z-1">
+        <div class="row align-items-center g-5 py-2">
+            <div class="col-lg-6 text-white">
+                <div class="hero-badge mb-3 d-inline-flex align-items-center gap-2">
+                    <span class="badge-dot"></span>
+                    <span>Official Zamboanga &amp; Region 9 Bus Booking Portal</span>
+                </div>
+                <h1 class="hero-title mb-3">
+                    Pick your trip.<br>
+                    Pick your seat.<br>
+                    <span class="text-signal">Be on the bus.</span>
+                </h1>
+                <p class="hero-sub mb-4">
+                    Fast, secure intercity travel across Zamboanga City and Western Mindanao. View real-time seating layouts, book in minutes, and print your digital boarding pass.
+                </p>
+
+                <!-- Popular Route Shortcuts with Next Departure Time & Date -->
+                <?php if ($routes): ?>
+                    <div class="hero-quick-routes pt-2">
+                        <span class="small text-white-50 d-block mb-2">
+                            <i class="bi bi-clock-history text-warning me-1"></i> Scheduled upcoming routes (click to select):
+                        </span>
+                        <div class="d-flex flex-wrap gap-2">
+                            <?php foreach (array_slice($routes, 0, 4) as $qr): ?>
+                                <?php
+                                    $qrDate = !empty($qr['next_departure']) ? date('Y-m-d', strtotime($qr['next_departure'])) : '';
+                                    $qrTime = !empty($qr['next_departure']) ? fmt_time($qr['next_departure']) : '';
+                                    $qrDateFmt = !empty($qr['next_departure']) ? fmt_date($qr['next_departure']) : '';
+                                ?>
+                                <button type="button" class="btn btn-outline-light btn-sm hero-chip"
+                                        onclick="fillSearch('<?= e(addslashes($qr['origin'])) ?>', '<?= e(addslashes($qr['destination'])) ?>', '<?= e($qrDate) ?>')">
+                                    <?= e($qr['origin']) ?> <i class="bi bi-arrow-right mx-1 opacity-75"></i> <?= e($qr['destination']) ?>
+                                    <?php if ($qrDateFmt): ?>
+                                        <span class="badge bg-warning text-dark ms-1 small"><?= e($qrDateFmt) ?> &bull; <?= e($qrTime) ?></span>
+                                    <?php endif; ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
-            <h1 class="hero-title mb-2">
-                Fast &amp; Reliable Intercity Bus Travel
-            </h1>
-            <p class="hero-sub mb-0 text-white-50 mx-auto" style="max-width: 650px;">
-                Sign in or register below to reserve your seats, select coach layouts, and download instant boarding passes across Zamboanga City and Western Mindanao.
-            </p>
+
+            <div class="col-lg-6" id="search">
+                <form class="ticket-panel shadow-lg" method="get" action="<?= url('passenger/trip_results.php') ?>">
+                    <div class="ticket-panel-header d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="ticket-panel-icon"><i class="bi bi-search"></i></span>
+                            <div>
+                                <h2 class="h5 mb-0 fw-bold">Find a Trip</h2>
+                                <small class="text-muted">Search scheduled departures</small>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column align-items-end gap-1">
+                            <span class="badge bg-light text-primary border px-2 py-1"><i class="bi bi-shield-check"></i> Instant Booking</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem;">
+                                <i class="bi bi-tag-fill me-1"></i> 20% Off for Student / Senior / PWD
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-5 position-relative">
+                            <label for="originInput" class="form-label d-flex align-items-center gap-1">
+                                <i class="bi bi-geo-alt-fill text-primary"></i> Departure City
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control autocomplete-city" id="originInput" name="origin" placeholder="Type city (e.g. Zamboanga City)..." value="<?= e($selOrigin) ?>" autocomplete="off" required>
+                                <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow w-100" id="originDropdown">
+                                    <?php foreach ($origins as $city): ?>
+                                        <li><button class="dropdown-item city-opt" type="button" data-target="originInput"><?= e($city) ?></button></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                            <div class="autocomplete-suggestions list-group shadow position-absolute w-100 d-none" id="originSuggestions" style="z-index: 1050; max-height: 220px; overflow-y: auto;"></div>
+                        </div>
+
+                        <div class="col-md-2 text-center py-1 py-md-0">
+                            <button type="button" class="btn btn-outline-dark btn-swap rounded-circle" id="swapCities" title="Swap origin and destination" aria-label="Swap origin and destination">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+                        </div>
+
+                        <div class="col-md-5 position-relative">
+                            <label for="destinationInput" class="form-label d-flex align-items-center gap-1">
+                                <i class="bi bi-geo-fill text-danger"></i> Destination City
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control autocomplete-city" id="destinationInput" name="destination" placeholder="Type destination (e.g. Pagadian City)..." value="<?= e($selDest) ?>" autocomplete="off" required>
+                                <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow w-100" id="destinationDropdown">
+                                    <?php foreach ($destinations as $city): ?>
+                                        <li><button class="dropdown-item city-opt" type="button" data-target="destinationInput"><?= e($city) ?></button></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                            <div class="autocomplete-suggestions list-group shadow position-absolute w-100 d-none" id="destinationSuggestions" style="z-index: 1050; max-height: 220px; overflow-y: auto;"></div>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="date" class="form-label d-flex align-items-center gap-1">
+                                <i class="bi bi-calendar3 text-warning"></i> Departure Date
+                            </label>
+                            <input type="date" class="form-control" id="date" name="date" min="<?= date('Y-m-d') ?>" value="<?= e($selDate) ?>" required>
+                            <?php if (!empty($upcomingTrips)): ?>
+                                <div class="form-text text-muted small mt-1">
+                                    <i class="bi bi-info-circle-fill text-primary me-1"></i> Earliest available scheduled bus departs on:
+                                    <strong><?= e(fmt_date($upcomingTrips[0]['departure_time'])) ?></strong> (<?= e(fmt_time($upcomingTrips[0]['departure_time'])) ?>)
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="ticket-tear">
+                        <span class="ticket-tear-circle left"></span>
+                        <span class="ticket-tear-line"></span>
+                        <span class="ticket-tear-circle right"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-search"></i>
+                        <span>Search Available Buses</span>
+                    </button>
+                </form>
+            </div>
         </div>
+    </div>
+</section>
 
-        <!-- Integrated Sliding Login and Register Container in place of Find a Trip -->
-        <?php if (!is_logged_in()): ?>
-            <div class="d-flex justify-content-center my-3">
-                <div class="auth-container-sliding <?= $activeAuthTab === 'register' ? 'right-panel-active' : '' ?>" id="authContainerLanding">
-                    <!-- Register Form Box -->
-                    <div class="form-container sign-up-container">
-                        <form method="post" action="<?= url('index.php#hero-portal') ?>" class="auth-inner-form" novalidate>
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="landing_register">
-                            <h2 class="h4 fw-bold text-dark mb-1">Create Passenger Account</h2>
-                            <p class="text-muted small mb-3">Join in one minute to book seats &amp; travel nationwide.</p>
+<!-- Scheduled Available Buses Timetable Section (for Walk-ins & Visitors) -->
+<section class="container py-5" id="schedules">
+    <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
+        <div>
+            <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">
+                <i class="bi bi-calendar2-week-fill me-1"></i> Live Departure Timetable
+            </span>
+            <h2 class="h3 mb-1 fw-bold">Scheduled Available Buses</h2>
+            <p class="text-muted mb-0 small">Passenger departure timetable: view departure dates, times, coach types, and live available seats on upcoming runs.</p>
+        </div>
+        <a href="#search" class="btn btn-outline-dark btn-sm rounded-pill px-3 d-none d-md-inline-flex align-items-center gap-1">
+            <i class="bi bi-search me-1"></i> Search by Date
+        </a>
+    </div>
 
-                            <?php if ($activeAuthTab === 'register' && $authErrors): ?>
-                                <div class="alert alert-danger py-1 px-2 border-0 shadow-sm small mb-2 w-100 text-start">
-                                    <ul class="mb-0 ps-3">
-                                        <?php foreach ($authErrors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
-                                    </ul>
+    <?php if (!$upcomingTrips): ?>
+        <div class="panel p-5 bg-white rounded-4 border shadow-sm text-center">
+            <i class="bi bi-calendar-x fs-1 text-muted mb-2"></i>
+            <h3 class="h5 fw-bold mb-1">No Upcoming Trips Scheduled</h3>
+            <p class="text-muted small mb-0">Check back later or contact terminal administration for new schedule announcements.</p>
+        </div>
+    <?php else: ?>
+        <div class="row g-3">
+            <?php foreach ($upcomingTrips as $t): ?>
+                <?php
+                    $left = max(0, (int)$t['available_seats']);
+                    $depTs = strtotime($t['departure_time']);
+                    $arrTs = strtotime($t['arrival_time']);
+                    $duration = $arrTs > $depTs ? round(($arrTs - $depTs) / 3600, 1) : null;
+                ?>
+                <div class="col-lg-6">
+                    <div class="schedule-card bg-white p-3 p-md-4 rounded-4 border shadow-sm h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <!-- Top bar: Date pill & Bus type -->
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
+                                        <i class="bi bi-calendar-event me-1"></i> <?= e(date('l, F j, Y', $depTs)) ?>
+                                    </span>
+                                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-bus-front me-1 text-primary"></i> <?= e($t['bus_type']) ?>
+                                    </span>
                                 </div>
-                            <?php endif; ?>
-
-                            <div class="row g-2 w-100 mb-2">
-                                <div class="col-6 text-start">
-                                    <label class="form-label small fw-semibold mb-1">First Name</label>
-                                    <input type="text" class="form-control form-control-sm" name="first_name" value="<?= e($_POST['first_name'] ?? '') ?>" placeholder="Juan" required>
-                                </div>
-                                <div class="col-6 text-start">
-                                    <label class="form-label small fw-semibold mb-1">Last Name</label>
-                                    <input type="text" class="form-control form-control-sm" name="last_name" value="<?= e($_POST['last_name'] ?? '') ?>" placeholder="Dela Cruz" required>
-                                </div>
+                                <span class="badge bg-light text-muted border small font-monospace">Bus #<?= e($t['bus_number']) ?></span>
                             </div>
 
-                            <div class="w-100 text-start mb-2">
-                                <label class="form-label small fw-semibold mb-1">Email Address</label>
-                                <input type="email" class="form-control form-control-sm" name="email" value="<?= e($_POST['email'] ?? '') ?>" placeholder="juan@example.com" required>
-                            </div>
+                            <!-- Route & Time visual -->
+                            <div class="d-flex align-items-center justify-content-between my-3">
+                                <div>
+                                    <div class="h4 fw-bold text-dark mb-0"><?= e(fmt_time($t['departure_time'])) ?></div>
+                                    <span class="text-muted small fw-semibold text-truncate d-block" style="max-width: 140px;"><?= e($t['origin']) ?></span>
+                                    <span class="badge bg-light text-muted border small mt-1">Terminal</span>
+                                </div>
 
-                            <div class="w-100 text-start mb-2">
-                                <label class="form-label small fw-semibold mb-1">Mobile Number</label>
-                                <input type="tel" class="form-control form-control-sm" name="phone_number" value="<?= e($_POST['phone_number'] ?? '') ?>" placeholder="09171234567" required>
-                            </div>
-
-                            <div class="row g-2 w-100 mb-3">
-                                <div class="col-6 text-start">
-                                    <label class="form-label small fw-semibold mb-1">Password</label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="password" class="form-control" id="reg_pw_home" name="password" placeholder="Min. 8 chars" required>
-                                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="reg_pw_home"><i class="bi bi-eye"></i></button>
+                                <div class="flex-grow-1 px-3 text-center">
+                                    <?php if ($duration): ?>
+                                        <span class="small text-muted d-block mb-1"><?= $duration ?> hrs</span>
+                                    <?php endif; ?>
+                                    <div class="position-relative d-flex align-items-center justify-content-center">
+                                        <div style="height: 2px; width: 100%; background: #CBD5E1;"></div>
+                                        <i class="bi bi-arrow-right-circle-fill text-primary position-absolute bg-white px-1 fs-5"></i>
                                     </div>
+                                    <span class="small text-muted d-block mt-1"><?= e(number_format((float)$t['distance_km'])) ?> km</span>
                                 </div>
-                                <div class="col-6 text-start">
-                                    <label class="form-label small fw-semibold mb-1">Confirm</label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="password" class="form-control" id="reg_cpw_home" name="confirm_password" placeholder="Repeat" required>
-                                        <button class="btn btn-outline-secondary" type="button" data-password-toggle="reg_cpw_home"><i class="bi bi-eye"></i></button>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 fw-bold shadow-sm">
-                                <i class="bi bi-person-check-fill me-1"></i> Register &amp; Verify OTP
-                            </button>
-                            <div class="d-block d-md-none mt-3">
-                                <a href="javascript:void(0)" onclick="toggleLandingToLogin()" class="text-primary small fw-semibold">Already registered? Sign In</a>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Login Form Box -->
-                    <div class="form-container sign-in-container">
-                        <form method="post" action="<?= url('index.php#hero-portal') ?>" class="auth-inner-form" novalidate>
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="landing_login">
-
-                            <div class="brand-icon-wrapper mb-2" style="width: 52px; height: 52px; font-size: 1.5rem; background: var(--primary-subtle, #ecfdf5); color: var(--primary, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                <i class="bi bi-bus-front-fill"></i>
-                            </div>
-                            <h2 class="h3 fw-bold text-dark mb-1">Welcome Back</h2>
-                            <p class="text-muted small mb-4">Sign in to your account with your email &amp; password.</p>
-
-                            <?php if ($activeAuthTab === 'login' && $authErrors): ?>
-                                <div class="alert alert-danger py-2 px-3 border-0 shadow-sm small mb-3 w-100 text-start">
-                                    <ul class="mb-0 ps-3">
-                                        <?php foreach ($authErrors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
-                                    </ul>
-                                </div>
-                            <?php endif; ?>
-
-                            <div class="w-100 text-start mb-3">
-                                <label class="form-label small fw-semibold">Email address</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
-                                    <input type="email" class="form-control border-start-0 ps-0" name="email" value="<?= e($_POST['email'] ?? '') ?>" autocomplete="email" placeholder="name@example.com" required>
+                                <div class="text-end">
+                                    <div class="h4 fw-bold text-dark mb-0"><?= e(fmt_time($t['arrival_time'])) ?></div>
+                                    <span class="text-muted small fw-semibold text-truncate d-block" style="max-width: 140px;"><?= e($t['destination']) ?></span>
+                                    <span class="badge bg-light text-muted border small mt-1">Arrival</span>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="w-100 text-start mb-4">
-                                <label class="form-label small fw-semibold">Password</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
-                                    <input type="password" class="form-control border-start-0 border-end-0 ps-0" id="login_pw_home" name="password" autocomplete="current-password" placeholder="Enter password" required>
-                                    <button class="btn btn-outline-secondary border-start-0" type="button" data-password-toggle="login_pw_home"><i class="bi bi-eye"></i></button>
+                        <!-- Card Footer: Seats, Fare, Action Button -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top mt-2 gap-2">
+                            <div>
+                                <?php if ($left <= 0): ?>
+                                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-x-circle me-1"></i> Sold out
+                                    </span>
+                                <?php elseif ($left <= 5): ?>
+                                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-fire me-1"></i> Only <?= $left ?> seats left
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-success-subtle text-success px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-check2-circle me-1"></i> <?= $left ?> seats available
+                                    </span>
+                                <?php endif; ?>
+                                <div class="fw-bold fs-5 text-primary mt-1"><?= money($t['fare']) ?> <span class="small fw-normal text-muted">/ regular</span></div>
+                                <div class="small text-success mt-1" style="font-size: 0.75rem;">
+                                    <i class="bi bi-tag-fill me-1"></i><?= money($t['fare'] * 0.80) ?> (20% off for Student/Senior/PWD)
                                 </div>
                             </div>
-
-                            <button type="submit" class="btn btn-primary rounded-pill w-100 py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-box-arrow-in-right"></i> Sign In to Account
-                            </button>
-                            <div class="d-block d-md-none mt-3">
-                                <a href="javascript:void(0)" onclick="toggleLandingToRegister()" class="text-primary small fw-semibold">Need an account? Sign Up</a>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Sliding Cover Layer -->
-                    <div class="overlay-container">
-                        <div class="overlay">
-                            <div class="overlay-panel overlay-left">
-                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small mb-3">Philippine Intercity Express</span>
-                                <h2 class="h2 fw-bold text-white mb-2">Welcome Back!</h2>
-                                <p class="text-white-50 px-4 small mb-4">Sign in with your email &amp; password to view your booked trips, digital boarding passes, and ticket receipts.</p>
-                                <button type="button" class="btn btn-outline-light rounded-pill px-5 py-2 fw-bold shadow-sm" onclick="toggleLandingToLogin()">
-                                    <i class="bi bi-arrow-left me-1"></i> Sign In
-                                </button>
-                            </div>
-
-                            <div class="overlay-panel overlay-right">
-                                <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1 small mb-3">Instant Online Booking</span>
-                                <h2 class="h2 fw-bold text-white mb-2">Hello, Traveler!</h2>
-                                <p class="text-white-50 px-4 small mb-4">Register your passenger account today to select preferred bus seats, receive e-wallet tickets, and enjoy 20% discounts.</p>
-                                <button type="button" class="btn btn-outline-light rounded-pill px-5 py-2 fw-bold shadow-sm" onclick="toggleLandingToRegister()">
-                                    Sign Up <i class="bi bi-arrow-right ms-1"></i>
-                                </button>
+                            <div class="d-flex gap-2">
+                                <a href="<?= url('index.php') ?>?origin=<?= urlencode($t['origin']) ?>&amp;destination=<?= urlencode($t['destination']) ?>&amp;date=<?= e(date('Y-m-d', $depTs)) ?>#search"
+                                   class="btn btn-outline-dark btn-sm rounded-pill px-3">
+                                    <i class="bi bi-calendar-check me-1"></i> View Route
+                                </a>
+                                <?php if ($left > 0): ?>
+                                    <a href="<?= url('passenger/seat_selection.php?trip_id=' . (int)$t['trip_id']) ?>" class="btn btn-primary btn-sm rounded-pill shadow-sm px-3 d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-ticket-perforated"></i> Select Seats
+                                    </a>
+                                <?php else: ?>
+                                    <button class="btn btn-secondary btn-sm rounded-pill px-3" disabled>Sold out</button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        <?php else: ?>
-            <div class="text-center py-4">
-                <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-20 max-w-600 mx-auto">
-                    <h3 class="h4 text-white fw-bold mb-2">You are currently logged in</h3>
-                    <p class="text-white-50 small mb-3">Go to your dashboard to manage your bookings and reservations.</p>
-                    <a href="<?= url(in_array($_SESSION['role'], ['ADMIN', 'SUPER_ADMIN'], true) ? 'admin/dashboard.php' : 'passenger/dashboard.php') ?>" class="btn btn-primary rounded-pill px-4 shadow-sm">
-                        Go to Dashboard <i class="bi bi-arrow-right ms-1"></i>
-                    </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
+
+<!-- Feature Badges Section -->
+<section class="features-section py-5">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon bg-primary-subtle text-primary">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </div>
+                    <h3 class="h6 fw-bold mb-2">Pick Your Seat</h3>
+                    <p class="text-muted small mb-0">Select your preferred window, aisle, or front seat directly on our real-time interactive bus map.</p>
                 </div>
             </div>
-        <?php endif; ?>
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon bg-warning-subtle text-warning">
+                        <i class="bi bi-ticket-detailed-fill"></i>
+                    </div>
+                    <h3 class="h6 fw-bold mb-2">Instant e-Ticket</h3>
+                    <p class="text-muted small mb-0">Get your ticket reference immediately. Show it on your phone or print a physical boarding pass.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon bg-success-subtle text-success">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <h3 class="h6 fw-bold mb-2">Verified Drivers</h3>
+                    <p class="text-muted small mb-0">All trips are operated by licensed drivers and registered modern coaches with regular safety checks.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="feature-card h-100">
+                    <div class="feature-icon bg-info-subtle text-info">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                    <h3 class="h6 fw-bold mb-2">Flexible Payment</h3>
+                    <p class="text-muted small mb-0">Pay conveniently at the terminal counter with cash, or choose GCash, Maya, and card options.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 
@@ -342,8 +395,8 @@ require __DIR__ . '/includes/header.php';
             <h2 class="h3 mb-1 fw-bold">Routes We Serve</h2>
             <p class="text-muted mb-0 small">Explore our regional intercity routes connecting Zamboanga City, Zamboanga Peninsula, and Mindanao hubs with real-time seat availability.</p>
         </div>
-        <a href="#hero-portal" class="btn btn-outline-dark btn-sm d-none d-md-inline-flex align-items-center gap-1">
-            <i class="bi bi-arrow-up-circle"></i> Back to Top
+        <a href="#search" class="btn btn-outline-dark btn-sm d-none d-md-inline-flex align-items-center gap-1">
+            <i class="bi bi-arrow-up-circle"></i> Back to Search
         </a>
     </div>
 
@@ -356,7 +409,7 @@ require __DIR__ . '/includes/header.php';
             <div class="col-md-6 col-xl-4">
                 <a class="route-card-modern position-relative overflow-hidden"
                    style="background-image: linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.92) 55%, rgba(248,250,252,0.85) 100%), url('<?= e($routeBusImg) ?>');"
-                   href="<?= is_logged_in() ? url('passenger/trip_results.php?origin=' . urlencode($r['origin']) . '&destination=' . urlencode($r['destination']) . '&date=' . e($nextDateParam)) : url('index.php#hero-portal') ?>">
+                   href="<?= is_logged_in() ? url('passenger/trip_results.php?origin=' . urlencode($r['origin']) . '&destination=' . urlencode($r['destination']) . '&date=' . e($nextDateParam)) : url('index.php?origin=' . urlencode($r['origin']) . '&destination=' . urlencode($r['destination']) . '&date=' . e($nextDateParam) . '#search') ?>">
                     <div class="route-card-bus-watermark" style="background-image: url('<?= e($routeBusImg) ?>');"></div>
                     <div class="position-relative z-1">
                         <div class="route-card-header d-flex justify-content-between align-items-center mb-2">
@@ -501,17 +554,6 @@ function fillSearch(from, to, date) {
             searchEl.scrollIntoView({ behavior: 'smooth' });
         }
     }
-}
-
-// Landing Page Sliding Auth Helpers
-function toggleLandingToRegister() {
-    const c = document.getElementById('authContainerLanding');
-    if (c) c.classList.add('right-panel-active');
-}
-
-function toggleLandingToLogin() {
-    const c = document.getElementById('authContainerLanding');
-    if (c) c.classList.remove('right-panel-active');
 }
 </script>
 <?php require __DIR__ . '/includes/footer.php'; ?>
